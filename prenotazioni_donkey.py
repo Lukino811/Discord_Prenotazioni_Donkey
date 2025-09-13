@@ -118,14 +118,14 @@ class BookingButton(discord.ui.Button):
         )
 
 # Pulsante per allegare file
-class UploadFileButton(discord.ui.Button):
-    def __init__(self):
-        super().__init__(label="Allega File", style=discord.ButtonStyle.primary)
-
-    async def callback(self, interaction: discord.Interaction):
-        await interaction.response.send_message(
-            "📎 Puoi allegare un file qui tramite Discord.", ephemeral=True
-        )
+#lass UploadFileButton(discord.ui.Button):
+ #   def __init__(self):
+  #      super().__init__(label="Allega File", style=discord.ButtonStyle.primary)
+#
+ #   async def callback(self, interaction: discord.Interaction):
+  #      await interaction.response.send_message(
+   #         "📎 Puoi allegare un file qui tramite Discord.", ephemeral=True
+    #    )
 
 # Pulsante per cambiare aereo
 class ChangePlaneButton(discord.ui.Button):
@@ -146,7 +146,7 @@ class BookingView(discord.ui.View):
         super().__init__(timeout=None)
         for role in active_roles:
             self.add_item(BookingButton(role, data, desc, active_roles, plane))
-        self.add_item(UploadFileButton())
+        #self.add_item(UploadFileButton())
 
 class PlaneSelect(discord.ui.Select):
     def __init__(self, data, desc, active_roles):
