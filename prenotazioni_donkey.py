@@ -3,6 +3,8 @@ from discord import app_commands
 from discord.ext import commands
 import json
 import os
+from flask import Flask
+from threading import Thread
 
 # ---------------------------- CONFIG ----------------------------
 TOKEN = os.environ.get("DISCORD_TOKEN")
@@ -72,8 +74,6 @@ class BookingButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         user = interaction.user.name
-
-        # Controllo se l'utente è già in un altro ruolo
         already_in_role = None
         for r, info in self.active_roles.items():
             if user in info["users"]:
@@ -117,17 +117,6 @@ class BookingButton(discord.ui.Button):
             ephemeral=True
         )
 
-# Pulsante per allegare file
-#lass UploadFileButton(discord.ui.Button):
- #   def __init__(self):
-  #      super().__init__(label="Allega File", style=discord.ButtonStyle.primary)
-#
- #   async def callback(self, interaction: discord.Interaction):
-  #      await interaction.response.send_message(
-   #         "📎 Puoi allegare un file qui tramite Discord.", ephemeral=True
-    #    )
-
-# Pulsante per cambiare aereo
 class ChangePlaneButton(discord.ui.Button):
     def __init__(self, data, desc, active_roles):
         super().__init__(label="Cambia Aereo", style=discord.ButtonStyle.secondary)
@@ -146,7 +135,6 @@ class BookingView(discord.ui.View):
         super().__init__(timeout=None)
         for role in active_roles:
             self.add_item(BookingButton(role, data, desc, active_roles, plane))
-        #self.add_item(UploadFileButton())
 
 class PlaneSelect(discord.ui.Select):
     def __init__(self, data, desc, active_roles):
@@ -237,7 +225,6 @@ async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
         await interaction.response.send_message("Seleziona aerei per i ruoli:", view=view, ephemeral=True)
     await interaction.followup.send("Conferma l'evento quando hai completato la scelta degli aerei:", view=setup_view.confirm_view, ephemeral=True)
 
-# Aggiunge comando in tutti i server
 for guild_id in GUILD_IDS:
     bot.tree.add_command(prenotazioni, guild=discord.Object(id=guild_id))
 
@@ -251,6 +238,19 @@ async def on_ready():
             print(f"🔄 Sincronizzati {len(synced)} comandi slash per guild {guild_id}")
     except Exception as e:
         print(f"Errore sync: {e}")
+
+# ---------------------------- WEB SERVER ----------------------------
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot attivo!"
+
+def run():
+    port = int(os.environ.get("PORT", 3000))
+    app.run(host='0.0.0.0', port=port)
+
+Thread(target=run).start()
 
 # ---------------------------- AVVIO BOT ----------------------------
 bot.run(TOKEN)
