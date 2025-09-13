@@ -10,10 +10,14 @@ from threading import Thread
 TOKEN = os.environ.get("DISCORD_TOKEN")
 if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN non trovato — imposta la variabile d'ambiente")
-GUILD_ID = 1358713154116259892
+
+# Lista di server autorizzati
+GUILD_IDS = [
+    1358713154116259892,  # tuo server di test
+    687741871757197312    # altro server
+]
 
 BACKGROUND_URL = "https://cdn.discordapp.com/attachments/710523786558046298/1403090934857728001/BCO.png"
-
 roles_template = {
     "Barcap": {"slots": 4},
     "Escort": {"slots": 4},
@@ -22,7 +26,7 @@ roles_template = {
     "Strike": {"slots": 4}
 }
 
-available_planes = ["FA-18C", "F-16C"]  # Aerei possibili per gli utenti
+available_planes = ["FA-18C", "F-16C"]
 
 # ---------------------------- BOT ----------------------------
 intents = discord.Intents.default()
@@ -48,11 +52,7 @@ def generate_embed(data: str, desc: str, active_roles: dict, user_planes: dict):
     )
     for role, info in active_roles.items():
         stato = "✅ Attivo" if info["plane"] != "Non Attivo" else "❌ Non Attivo"
-        piloti = []
-        for user in info["users"]:
-            aereo = user_planes.get(user, "—")
-            piloti.append(f"{user} ({aereo})")
-        piloti_text = ", ".join(piloti) if piloti else "Nessuno"
+        piloti_text = ", ".join(info["users"]) if info["users"] else "Nessuno"
         embed.add_field(
             name=f"{role} ({len(info['users'])}/{info['slots']}) - {stato} - {info['plane']}",
             value=f"Prenotati: {piloti_text}",
@@ -72,35 +72,33 @@ class BookingButton(discord.ui.Button):
         self.user_planes = user_planes
         self.user_plane_choice = user_plane_choice
         role_plane = active_roles[role]["plane"]
-        # Il bottone è abilitato solo se il ruolo è attivo e compatibile con l'aereo dell'utente
         color = discord.ButtonStyle.success if role_plane != "Non Attivo" else discord.ButtonStyle.secondary
         disabled = role_plane == "Non Attivo" or role_plane != user_plane_choice
         super().__init__(label=role, style=color, disabled=disabled)
 
     async def callback(self, interaction: discord.Interaction):
         user = interaction.user.name
-        role_info = self.active_roles[self.role_name]
+        # Rimuove l'utente da eventuali altri ruoli
+        for r, info in self.active_roles.items():
+            if user in info["users"]:
+                info["users"].remove(user)
 
-        if user in role_info["users"]:
-            # Rimuove la prenotazione
-            role_info["users"].remove(user)
-            self.user_planes.pop(user, None)
-            save_bookings()
-            embed = generate_embed(self.data, self.desc, self.active_roles, self.user_planes)
-            await interaction.response.edit_message(embed=embed, view=self.view)
-            await interaction.followup.send(f"❌ Prenotazione rimossa da **{self.role_name}**.", ephemeral=True)
-            return
+        role_info = self.active_roles[self.role_name]
 
         if len(role_info["users"]) >= role_info["slots"]:
             await interaction.response.send_message(f"⚠️ {self.role_name} è pieno!", ephemeral=True)
             return
 
-        # Aggiunge l'utente al ruolo
-        role_info["users"].append(user)
+        # Aggiorna aereo e aggiunge al ruolo
         self.user_planes[user] = self.user_plane_choice
+        role_info["users"].append(user)
+
         save_bookings()
         embed = generate_embed(self.data, self.desc, self.active_roles, self.user_planes)
-        await interaction.response.edit_message(embed=embed, view=self.view)
+        # Aggiunge anche i pulsanti extra (Cambia aereo / Allega file)
+        view = BookingView(self.data, self.desc, self.active_roles, self.user_planes, self.user_plane_choice)
+        view.add_item(ExtraButtons(self.data, self.desc, self.active_roles, self.user_planes))
+        await interaction.response.edit_message(embed=embed, view=view)
         await interaction.followup.send(f"✅ Prenotazione confermata in **{self.role_name}**.", ephemeral=True)
 
 class BookingView(discord.ui.View):
@@ -108,8 +106,28 @@ class BookingView(discord.ui.View):
         super().__init__(timeout=None)
         for role in active_roles:
             self.add_item(BookingButton(role, data, desc, active_roles, user_planes, user_plane_choice))
+        self.add_item(ExtraButtons(data, desc, active_roles, user_planes))
 
-# ---------------------------- SELEZIONE AEREO UTENTE ----------------------------
+# ---------------------------- PULSANTI EXTRA ----------------------------
+class ExtraButtons(discord.ui.Button):
+    def __init__(self, data, desc, active_roles, user_planes):
+        self.data = data
+        self.desc = desc
+        self.active_roles = active_roles
+        self.user_planes = user_planes
+        super().__init__(label="Extra", style=discord.ButtonStyle.secondary, disabled=True)
+
+    @discord.ui.button(label="Cambia Aereo", style=discord.ButtonStyle.primary)
+    async def change_plane(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = PlaneSelectView(self.data, self.desc, self.active_roles, self.user_planes)
+        embed = generate_embed(self.data, self.desc, self.active_roles, self.user_planes)
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    @discord.ui.button(label="Allega File", style=discord.ButtonStyle.secondary)
+    async def attach_file(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message("📎 Invia qui il file o immagine da allegare.", ephemeral=True)
+
+# ---------------------------- SELEZIONE AEREO ----------------------------
 class PlaneSelect(discord.ui.Select):
     def __init__(self, data, desc, active_roles, user_planes):
         options = [discord.SelectOption(label=p, value=p) for p in available_planes]
@@ -214,7 +232,7 @@ async def on_ready():
     except Exception as e:
         print(f"Errore sync: {e}")
 
-# ---------------------------- WEB SERVER PER UPTIME ----------------------------
+# ---------------------------- WEB SERVER ----------------------------
 app = Flask('')
 
 @app.route('/')
@@ -229,3 +247,4 @@ Thread(target=run).start()
 
 # ---------------------------- AVVIO BOT ----------------------------
 bot.run(TOKEN)
+
