@@ -1,0 +1,347 @@
+{
+    "Barcap": [],
+    "Escort": [],
+    "Sead": [],
+    "Dead": [],
+    "Strike": [],
+    "54465": {
+        "Barcap": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        },
+        "Escort": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        },
+        "Sead": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        },
+        "Dead": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        },
+        "Strike": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        }
+    },
+    "34234": {
+        "Barcap": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        },
+        "Escort": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        },
+        "Sead": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        },
+        "Dead": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        },
+        "Strike": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        }
+    },
+    "2134123": {
+        "Barcap": {
+            "plane": "FA-18C",
+            "slots": 4,
+            "users": []
+        },
+        "Escort": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        },
+        "Sead": {
+            "plane": "F-16C",
+            "slots": 4,
+            "users": []
+        },
+        "Dead": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        },
+        "Strike": {
+            "plane": "F-16C",
+            "slots": 4,
+            "users": []
+        }
+    },
+    "432423": {
+        "Barcap": {
+            "plane": "FA-18C",
+            "slots": 4,
+            "users": []
+        },
+        "Escort": {
+            "plane": "F-16C",
+            "slots": 4,
+            "users": []
+        },
+        "Sead": {
+            "plane": "FA-18C",
+            "slots": 4,
+            "users": []
+        },
+        "Dead": {
+            "plane": "FA-18C",
+            "slots": 4,
+            "users": []
+        },
+        "Strike": {
+            "plane": "F-16C",
+            "slots": 4,
+            "users": []
+        }
+    },
+    "3425235": {
+        "Barcap": {
+            "plane": "FA-18C",
+            "slots": 4,
+            "users": [
+                "meme811"
+            ]
+        },
+        "Escort": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        },
+        "Sead": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        },
+        "Dead": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        },
+        "Strike": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        }
+    },
+    "3432324": {
+        "Barcap": {
+            "plane": "FA-18C",
+            "slots": 4,
+            "users": []
+        },
+        "Escort": {
+            "plane": "F-16C",
+            "slots": 4,
+            "users": []
+        },
+        "Sead": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        },
+        "Dead": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        },
+        "Strike": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        }
+    },
+    "324324432": {
+        "Barcap": {
+            "plane": "FA-18C",
+            "slots": 4,
+            "users": [
+                "meme811"
+            ]
+        },
+        "Escort": {
+            "plane": "F-16C",
+            "slots": 4,
+            "users": []
+        },
+        "Sead": {
+            "plane": "F-16C",
+            "slots": 4,
+            "users": []
+        },
+        "Dead": {
+            "plane": "FA-18C",
+            "slots": 4,
+            "users": []
+        },
+        "Strike": {
+            "plane": "FA-18C",
+            "slots": 4,
+            "users": []
+        }
+    },
+    "32434": {
+        "Barcap": {
+            "plane": "FA-18C",
+            "slots": 4,
+            "users": [
+                "meme811"
+            ]
+        },
+        "Escort": {
+            "plane": "F-16C",
+            "slots": 4,
+            "users": []
+        },
+        "Sead": {
+            "plane": "FA-18C",
+            "slots": 4,
+            "users": []
+        },
+        "Dead": {
+            "plane": "F-16C",
+            "slots": 4,
+            "users": []
+        },
+        "Strike": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        }
+    },
+    "2121341": {
+        "Barcap": {
+            "plane": "FA-18C",
+            "slots": 4,
+            "users": [
+                "meme811"
+            ]
+        },
+        "Escort": {
+            "plane": "F-16C",
+            "slots": 4,
+            "users": []
+        },
+        "Sead": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        },
+        "Dead": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        },
+        "Strike": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        }
+    },
+    "231131e3": {
+        "Barcap": {
+            "plane": "FA-18C",
+            "slots": 4,
+            "users": []
+        },
+        "Escort": {
+            "plane": "FA-18C",
+            "slots": 4,
+            "users": [
+                "meme811"
+            ]
+        },
+        "Sead": {
+            "plane": "F-16C",
+            "slots": 4,
+            "users": []
+        },
+        "Dead": {
+            "plane": "F-16C",
+            "slots": 4,
+            "users": []
+        },
+        "Strike": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        }
+    },
+    "11-2-25": {
+        "Barcap": {
+            "plane": "FA-18C",
+            "slots": 4,
+            "users": []
+        },
+        "Escort": {
+            "plane": "F-16C",
+            "slots": 4,
+            "users": [
+                "porcorosso86"
+            ]
+        },
+        "Sead": {
+            "plane": "FA-18C",
+            "slots": 4,
+            "users": []
+        },
+        "Dead": {
+            "plane": "F-16C",
+            "slots": 4,
+            "users": [
+                "meme811"
+            ]
+        },
+        "Strike": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        }
+    },
+    "3231": {
+        "Barcap": {
+            "plane": "FA-18C",
+            "slots": 4,
+            "users": []
+        },
+        "Escort": {
+            "plane": "FA-18C",
+            "slots": 4,
+            "users": [
+                "meme811"
+            ]
+        },
+        "Sead": {
+            "plane": "F-16C",
+            "slots": 4,
+            "users": []
+        },
+        "Dead": {
+            "plane": "FA-18C",
+            "slots": 4,
+            "users": []
+        },
+        "Strike": {
+            "plane": "Non Attivo",
+            "slots": 4,
+            "users": []
+        }
+    }
+}
