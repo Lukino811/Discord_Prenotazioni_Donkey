@@ -216,16 +216,24 @@ class RolePlaneSelect(discord.ui.Select):
 
 
 class EventSetupView(discord.ui.View):
-    def __init__(self, data: str, desc: str):
+    def __init__(self, roles, data: str, desc: str):
         super().__init__(timeout=None)
+        self.roles = list(roles)  # Salva i ruoli in una lista
         self.data = data
         self.desc = desc
-        self.selected_planes = {}  # role_name -> plane
-        self.message = None  # sarà impostato dopo l'invio
-        # bottoni principali
-        self.add_item(AddRoleButton(self))
-        self.add_item(RemoveRoleButton(self))
-        self.add_item(ConfirmSetupButton(self))
+        self.selected_planes = {}
+        self.role_views = []
+
+        # Crea le view dei ruoli
+        for i in range(0, len(self.roles), 5):
+            view = discord.ui.View(timeout=None)
+            for role in self.roles[i:i+5]:
+                view.add_item(RolePlaneSelect(role, self))  # <-- qui deve esserci self
+            self.role_views.append(view)
+
+        self.confirm_view = ConfirmButtonView(self)
+
+
 
     async def update_setup_message(self):
         # Aggiorna il contenuto dell'embed/messaggio che mostra i ruoli scelti
@@ -315,20 +323,17 @@ class ConfirmSetupButton(discord.ui.Button):
 # ---------------------------- FINE CREAZIONE EVENTO ----------------------------
 
 # ---------------------------- COMANDO SLASH ----------------------------
-@app_commands.command(name="prenotazioni", description="Crea un evento con ruoli e aerei")
+@app_commands.command(name="prenotazioni", description="Crea un evento con ruoli dinamici")
 @app_commands.describe(
-    data="Data della missione (es. 2025-09-12 18:00)",
+    data="Data della missione (es. 2025-09-22 18:00)",
     desc="Breve descrizione della missione"
 )
 async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
-    setup_view = EventSetupView(roles_template.keys(), data, desc)
-    for view in setup_view.role_views:
-        await interaction.response.send_message("Seleziona aerei per i ruoli:", view=view, ephemeral=True)
-    await interaction.followup.send("Conferma l'evento quando hai completato la scelta degli aerei:", view=setup_view.confirm_view, ephemeral=True)
-
-for guild_id in GUILD_IDS:
-    bot.tree.add_command(prenotazioni, guild=discord.Object(id=guild_id))
-
+    # Creiamo la view dinamica
+    setup_view = EventSetupView(data, desc)
+    # Inviamo il messaggio iniziale
+    msg = await interaction.response.send_message("Configura i ruoli:", view=setup_view, ephemeral=True)
+    setup_view.message = msg
 # ---------------------------- ON_READY ----------------------------
 @bot.event
 async def on_ready():
