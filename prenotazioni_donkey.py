@@ -267,7 +267,8 @@ class EventSetupView:
         save_bookings()
         plane_view = PlaneSelectView(self.data, self.desc, active_roles)
         embed = generate_embed(self.data, self.desc, active_roles)
-        await interaction.response.send_message(embed=embed, view=plane_view)
+        await interaction.followup.send(embed=embed, view=plane_view)
+
 
 
 # ============================ COMANDO SLASH ============================
