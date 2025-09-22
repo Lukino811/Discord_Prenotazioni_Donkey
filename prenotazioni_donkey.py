@@ -1,3 +1,4 @@
+# ============================ CONFIG ============================
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -6,7 +7,6 @@ import os
 from flask import Flask
 from threading import Thread
 
-# ---------------------------- CONFIG ----------------------------
 TOKEN = os.environ.get("DISCORD_TOKEN")
 if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN non trovato — imposta la variabile d'ambiente")
@@ -20,11 +20,11 @@ BACKGROUND_URL = "https://cdn.discordapp.com/attachments/710523786558046298/1403
 MAX_ROLES = 5
 DEFAULT_SLOTS = 4
 
-# ---------------------------- BOT ----------------------------
+# ============================ BOT ============================
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ---------------------------- PERSISTENZA ----------------------------
+# ============================ PERSISTENZA ============================
 if os.path.exists("prenotazioni.json"):
     with open("prenotazioni.json", "r") as f:
         bookings = json.load(f)
@@ -35,7 +35,7 @@ def save_bookings():
     with open("prenotazioni.json", "w") as f:
         json.dump(bookings, f, indent=4)
 
-# ---------------------------- FUNZIONE EMBED ----------------------------
+# ============================ FUNZIONE EMBED ============================
 def generate_embed(data: str, desc: str, active_roles: dict):
     embed = discord.Embed(
         title="📋 Prenotazioni Piloti",
@@ -54,7 +54,7 @@ def generate_embed(data: str, desc: str, active_roles: dict):
     embed.set_image(url=BACKGROUND_URL)
     return embed
 
-# ---------------------------- BOTTONI ----------------------------
+# ============================ BOTTONI PRENOTAZIONE ============================
 class BookingButton(discord.ui.Button):
     def __init__(self, role, data, desc, active_roles, plane):
         is_active = active_roles[role]["plane"] == plane
@@ -123,7 +123,7 @@ class ChangePlaneButton(discord.ui.Button):
         embed = generate_embed(self.data, self.desc, self.active_roles)
         await interaction.response.edit_message(embed=embed, view=view)
 
-# ---------------------------- VIEW ----------------------------
+# ============================ VIEW PRENOTAZIONE ============================
 class BookingView(discord.ui.View):
     def __init__(self, data, desc, active_roles, plane):
         super().__init__(timeout=None)
@@ -151,7 +151,7 @@ class PlaneSelectView(discord.ui.View):
         super().__init__()
         self.add_item(PlaneSelect(data, desc, active_roles))
 
-# ---------------------------- CREAZIONE EVENTO DINAMICO CON PULSANTI ----------------------------
+# ============================ MODAL DINAMICI ============================
 class RoleInput(discord.ui.Modal, title="Aggiungi Ruolo"):
     role_name = discord.ui.TextInput(label="Nome ruolo", placeholder="Scrivi il nome del ruolo", max_length=50)
 
@@ -167,24 +167,23 @@ class RoleInput(discord.ui.Modal, title="Aggiungi Ruolo"):
         role_name = self.role_name.value.strip()
         self.parent_view.roles.append(role_name)
 
-        # Mostra pulsante per impostare l’aereo
         await interaction.response.send_message(
             f"Ruolo **{role_name}** aggiunto. Seleziona l'aereo:",
             view=SetPlaneButtonView(self.parent_view, role_name),
             ephemeral=True
         )
 
-class PlaneInput(discord.ui.Modal, title="Seleziona Aereo per il Ruolo"):
-    plane_name = discord.ui.TextInput(
-        label="Aereo",
-        placeholder="Scrivi F-16C o FA-18C o Non Attivo",
-        max_length=10
-    )
-
+class PlaneInput(discord.ui.Modal):
     def __init__(self, parent_view, role_name):
-        super().__init__()
+        super().__init__(title=f"Seleziona Aereo per {role_name}")
         self.parent_view = parent_view
         self.role_name = role_name
+        self.plane_name = discord.ui.TextInput(
+            label="Aereo",
+            placeholder="Scrivi F-16C o FA-18C o Non Attivo",
+            max_length=10,
+            custom_id=f"plane_{role_name}"  # ⚡ custom_id unico
+        )
         self.add_item(self.plane_name)
 
     async def on_submit(self, interaction: discord.Interaction):
@@ -202,7 +201,6 @@ class PlaneInput(discord.ui.Modal, title="Seleziona Aereo per il Ruolo"):
             ephemeral=True
         )
 
-        # Se non sono ancora arrivati a MAX_ROLES, mostra pulsante per aggiungere nuovo ruolo
         if len(self.parent_view.roles) < MAX_ROLES:
             await interaction.followup.send(
                 "Vuoi aggiungere un nuovo ruolo?",
@@ -212,7 +210,7 @@ class PlaneInput(discord.ui.Modal, title="Seleziona Aereo per il Ruolo"):
         else:
             await self.parent_view.finish_setup(interaction)
 
-# ---------------------------- VIEW PER PULSANTI ----------------------------
+# ============================ PULSANTI MODAL ============================
 class SetPlaneButton(discord.ui.Button):
     def __init__(self, parent_view, role_name):
         super().__init__(label="Imposta Aereo", style=discord.ButtonStyle.primary)
@@ -240,7 +238,7 @@ class AddRoleButtonView(discord.ui.View):
         super().__init__(timeout=None)
         self.add_item(AddRoleButton(parent_view))
 
-# ---------------------------- VIEW PRINCIPALE PER CREARE EVENTO ----------------------------
+# ============================ EVENT SETUP VIEW ============================
 class EventSetupView:
     def __init__(self, data, desc):
         self.data = data
@@ -263,7 +261,7 @@ class EventSetupView:
         view = PlaneSelectView(self.data, self.desc, active_roles)
         await interaction.followup.send(embed=embed, view=view)
 
-# ---------------------------- COMANDO SLASH ----------------------------
+# ============================ COMANDO SLASH ============================
 @app_commands.command(name="prenotazioni", description="Crea un evento con ruoli e aerei")
 @app_commands.describe(
     data="Data della missione (es. 2025-09-22 18:00)",
@@ -276,7 +274,7 @@ async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
 for guild_id in GUILD_IDS:
     bot.tree.add_command(prenotazioni, guild=discord.Object(id=guild_id))
 
-# ---------------------------- ON_READY ----------------------------
+# ============================ ON_READY ============================
 @bot.event
 async def on_ready():
     print(f"✅ Bot connesso come {bot.user}")
@@ -287,7 +285,7 @@ async def on_ready():
     except Exception as e:
         print(f"Errore sync: {e}")
 
-# ---------------------------- WEB SERVER ----------------------------
+# ============================ WEB SERVER ============================
 app = Flask('')
 
 @app.route('/')
@@ -300,5 +298,5 @@ def run():
 
 Thread(target=run).start()
 
-# ---------------------------- AVVIO BOT ----------------------------
+# ============================ AVVIO BOT ============================
 bot.run(TOKEN)
