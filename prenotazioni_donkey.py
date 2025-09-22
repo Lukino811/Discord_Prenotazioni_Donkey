@@ -17,7 +17,6 @@ GUILD_IDS = [
 ]
 
 BACKGROUND_URL = "https://cdn.discordapp.com/attachments/710523786558046298/1403090934857728001/BCO.png"
-
 MAX_ROLES = 5
 DEFAULT_SLOTS = 4
 
@@ -152,7 +151,7 @@ class PlaneSelectView(discord.ui.View):
         super().__init__()
         self.add_item(PlaneSelect(data, desc, active_roles))
 
-# ---------------------------- CREAZIONE EVENTO DINAMICO ----------------------------
+# ---------------------------- CREAZIONE EVENTO DINAMICO CORRETTA ----------------------------
 class RoleInput(discord.ui.Modal, title="Aggiungi Ruolo"):
     role_name = discord.ui.TextInput(label="Nome ruolo", placeholder="Scrivi il nome del ruolo", max_length=50)
 
@@ -165,32 +164,38 @@ class RoleInput(discord.ui.Modal, title="Aggiungi Ruolo"):
             await interaction.response.send_message("Hai raggiunto il limite di ruoli.", ephemeral=True)
             return
 
-        role_name = self.role_name.value
+        role_name = self.role_name.value.strip()
         self.parent_view.roles.append(role_name)
-        # Passaggio interattivo per scegliere aereo
         await interaction.response.send_modal(PlaneInput(self.parent_view, role_name))
 
 class PlaneInput(discord.ui.Modal, title="Seleziona Aereo per il Ruolo"):
-    plane_choice = discord.ui.Select(
-        placeholder="Seleziona F16, F18 o Non Attivo",
-        options=[
-            discord.SelectOption(label="F-16C", value="F-16C"),
-            discord.SelectOption(label="FA-18C", value="FA-18C"),
-            discord.SelectOption(label="Non Attivo", value="Non Attivo")
-        ]
+    plane_name = discord.ui.TextInput(
+        label="Aereo",
+        placeholder="Scrivi F-16C o FA-18C o Non Attivo",
+        max_length=10
     )
 
     def __init__(self, parent_view, role_name):
         super().__init__()
         self.parent_view = parent_view
         self.role_name = role_name
-        self.add_item(self.plane_choice)
+        self.add_item(self.plane_name)
 
     async def on_submit(self, interaction: discord.Interaction):
-        plane = self.plane_choice.values[0]
+        plane = self.plane_name.value.strip()
+        if plane not in ["F-16C", "FA-18C", "Non Attivo"]:
+            await interaction.response.send_message(
+                "⚠️ Inserisci un valore valido: F-16C, FA-18C o Non Attivo",
+                ephemeral=True
+            )
+            return
+
         self.parent_view.selected_planes[self.role_name] = plane
-        await interaction.response.send_message(f"Ruolo **{self.role_name}** impostato con aereo **{plane}**", ephemeral=True)
-        # Se non sono ancora arrivati a MAX_ROLES, chiedi nuovo ruolo
+        await interaction.response.send_message(
+            f"Ruolo **{self.role_name}** impostato con aereo **{plane}**",
+            ephemeral=True
+        )
+
         if len(self.parent_view.roles) < MAX_ROLES:
             await interaction.followup.send_modal(RoleInput(self.parent_view))
         else:
@@ -207,18 +212,14 @@ class EventSetupView:
         await interaction.response.send_modal(RoleInput(self))
 
     async def finish_setup(self, interaction: discord.Interaction):
-        # Creazione active_roles
         active_roles = {}
         for role in self.roles:
             plane = self.selected_planes.get(role, "Non Attivo")
-            active_roles[role] = {
-                "plane": plane,
-                "slots": DEFAULT_SLOTS,
-                "users": []
-            }
+            active_roles[role] = {"plane": plane, "slots": DEFAULT_SLOTS, "users": []}
+
         bookings[self.data] = active_roles
         save_bookings()
-        # Mostra embed con pulsanti per prenotazioni
+
         embed = generate_embed(self.data, self.desc, active_roles)
         view = PlaneSelectView(self.data, self.desc, active_roles)
         await interaction.followup.send(embed=embed, view=view)
@@ -249,7 +250,6 @@ async def on_ready():
 
 # ---------------------------- WEB SERVER ----------------------------
 app = Flask('')
-
 @app.route('/')
 def home():
     return "Bot attivo!"
