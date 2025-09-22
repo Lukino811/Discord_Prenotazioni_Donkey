@@ -339,11 +339,11 @@ async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
 async def on_ready():
     print(f"✅ Bot connesso come {bot.user}")
     try:
-        for guild_id in GUILD_IDS:
-            synced = await bot.tree.sync(guild=discord.Object(id=guild_id))
-            print(f"🔄 Sincronizzati {len(synced)} comandi slash per guild {guild_id}")
+        synced = await bot.tree.sync()  # sincronizza tutti i comandi slash globalmente
+        print(f"🔄 Sincronizzati {len(synced)} comandi slash globalmente")
     except Exception as e:
         print(f"Errore sync: {e}")
+
 
 # ---------------------------- WEB SERVER ----------------------------
 app = Flask('')
