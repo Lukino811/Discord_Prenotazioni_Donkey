@@ -151,7 +151,7 @@ class PlaneSelectView(discord.ui.View):
         super().__init__()
         self.add_item(PlaneSelect(data, desc, active_roles))
 
-# ============================ MODAL DINAMICI ============================
+# ============================ MODAL E SELEZIONE RUOLI ============================
 class RoleInput(discord.ui.Modal, title="Aggiungi Ruolo"):
     role_name = discord.ui.TextInput(label="Nome ruolo", placeholder="Scrivi il nome del ruolo", max_length=50)
 
@@ -167,40 +167,31 @@ class RoleInput(discord.ui.Modal, title="Aggiungi Ruolo"):
         role_name = self.role_name.value.strip()
         self.parent_view.roles.append(role_name)
 
+        # Mostra pulsante per selezionare aereo
         await interaction.response.send_message(
             f"Ruolo **{role_name}** aggiunto. Seleziona l'aereo:",
             view=SetPlaneButtonView(self.parent_view, role_name),
             ephemeral=True
         )
 
-class PlaneInput(discord.ui.Modal):
+class PlaneSelectForRole(discord.ui.Select):
     def __init__(self, parent_view, role_name):
-        super().__init__(title=f"Seleziona Aereo per {role_name}")
+        options = [
+            discord.SelectOption(label="F-16C", value="F-16C"),
+            discord.SelectOption(label="FA-18C", value="FA-18C"),
+            discord.SelectOption(label="Non Attivo", value="Non Attivo")
+        ]
+        super().__init__(placeholder=f"Scegli aereo per {role_name}",
+                         min_values=1, max_values=1, options=options)
         self.parent_view = parent_view
         self.role_name = role_name
-        self.plane_name = discord.ui.TextInput(
-            label="Aereo",
-            placeholder="Scrivi F-16C o FA-18C o Non Attivo",
-            max_length=10,
-            custom_id=f"plane_{role_name}"  # ⚡ custom_id unico
-        )
-        self.add_item(self.plane_name)
 
-    async def on_submit(self, interaction: discord.Interaction):
-        plane = self.plane_name.value.strip()
-        if plane not in ["F-16C", "FA-18C", "Non Attivo"]:
-            await interaction.response.send_message(
-                "⚠️ Inserisci un valore valido: F-16C, FA-18C o Non Attivo",
-                ephemeral=True
-            )
-            return
-
-        self.parent_view.selected_planes[self.role_name] = plane
+    async def callback(self, interaction: discord.Interaction):
+        self.parent_view.selected_planes[self.role_name] = self.values[0]
         await interaction.response.send_message(
-            f"Aereo per ruolo **{self.role_name}** impostato su **{plane}**",
+            f"Aereo per ruolo **{self.role_name}** impostato su **{self.values[0]}**",
             ephemeral=True
         )
-
         if len(self.parent_view.roles) < MAX_ROLES:
             await interaction.followup.send(
                 "Vuoi aggiungere un nuovo ruolo?",
@@ -210,7 +201,6 @@ class PlaneInput(discord.ui.Modal):
         else:
             await self.parent_view.finish_setup(interaction)
 
-# ============================ PULSANTI MODAL ============================
 class SetPlaneButton(discord.ui.Button):
     def __init__(self, parent_view, role_name):
         super().__init__(label="Imposta Aereo", style=discord.ButtonStyle.primary)
@@ -218,7 +208,13 @@ class SetPlaneButton(discord.ui.Button):
         self.role_name = role_name
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.response.send_modal(PlaneInput(self.parent_view, self.role_name))
+        view = discord.ui.View()
+        view.add_item(PlaneSelectForRole(self.parent_view, self.role_name))
+        await interaction.response.send_message(
+            f"Seleziona l'aereo per il ruolo **{self.role_name}**:",
+            view=view,
+            ephemeral=True
+        )
 
 class SetPlaneButtonView(discord.ui.View):
     def __init__(self, parent_view, role_name):
@@ -238,7 +234,7 @@ class AddRoleButtonView(discord.ui.View):
         super().__init__(timeout=None)
         self.add_item(AddRoleButton(parent_view))
 
-# ============================ EVENT SETUP VIEW ============================
+# ============================ EVENT SETUP ============================
 class EventSetupView:
     def __init__(self, data, desc):
         self.data = data
@@ -252,14 +248,17 @@ class EventSetupView:
     async def finish_setup(self, interaction: discord.Interaction):
         active_roles = {}
         for role in self.roles:
-            plane = self.selected_planes.get(role, "Non Attivo")
-            active_roles[role] = {"plane": plane, "slots": DEFAULT_SLOTS, "users": []}
-
+            plane_choice = self.selected_planes.get(role, "Non Attivo")
+            active_roles[role] = {
+                "plane": plane_choice,
+                "slots": DEFAULT_SLOTS,
+                "users": []
+            }
         bookings[self.data] = active_roles
         save_bookings()
+        plane_view = PlaneSelectView(self.data, self.desc, active_roles)
         embed = generate_embed(self.data, self.desc, active_roles)
-        view = PlaneSelectView(self.data, self.desc, active_roles)
-        await interaction.followup.send(embed=embed, view=view)
+        await interaction.followup.send(embed=embed, view=plane_view)
 
 # ============================ COMANDO SLASH ============================
 @app_commands.command(name="prenotazioni", description="Crea un evento con ruoli e aerei")
