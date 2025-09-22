@@ -278,7 +278,15 @@ class EventSetupView:
 
 # ============================ COMANDO SLASH ============================
 @bot.tree.command(name="prenotazioni", description="Crea un evento con ruoli e aerei")
-async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
+@app_commands.describe(
+    data="Data della missione (es. 2025-09-22 18:00)",
+    desc="Breve descrizione della missione"
+)
+async def prenotazioni(
+    interaction: discord.Interaction,
+    data: str = app_commands.Param(description="Data della missione (es. 2025-09-22 18:00)"),
+    desc: str = app_commands.Param(description="Breve descrizione della missione")
+):
     """
     Avvia la creazione di un evento mostrando il modal per aggiungere ruoli e aerei.
     """
@@ -289,9 +297,6 @@ async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
     
     # Mostriamo il modal per aggiungere ruoli
     await setup.start(interaction)
-
-
-
 
 
 # ============================ ON_READY ============================
