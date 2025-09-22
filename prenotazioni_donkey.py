@@ -335,14 +335,17 @@ async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
     msg = await interaction.response.send_message("Configura i ruoli:", view=setup_view, ephemeral=True)
     setup_view.message = msg
 # ---------------------------- ON_READY ----------------------------
+@# ---------------------------- ON_READY ----------------------------
 @bot.event
 async def on_ready():
     print(f"✅ Bot connesso come {bot.user}")
     try:
-        synced = await bot.tree.sync()  # sincronizza tutti i comandi slash globalmente
-        print(f"🔄 Sincronizzati {len(synced)} comandi slash globalmente")
+        guild_id = 1358713154116259892  # il tuo server
+        synced = await bot.tree.sync(guild=discord.Object(id=guild_id))
+        print(f"🔄 Sincronizzati {len(synced)} comandi slash per guild {guild_id}")
     except Exception as e:
         print(f"Errore sync: {e}")
+
 
 
 # ---------------------------- WEB SERVER ----------------------------
