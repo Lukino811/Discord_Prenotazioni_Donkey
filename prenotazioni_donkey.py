@@ -224,14 +224,15 @@ class EventSetupView(discord.ui.View):
         self.selected_planes = {}
         self.role_views = []
 
-        # Mantieni la logica originale per creare le view dei ruoli
+        # Crea le view dei ruoli
         for i in range(0, len(self.roles), 5):
             view = discord.ui.View(timeout=None)
             for role in self.roles[i:i+5]:
-                view.add_item(RolePlaneSelect(role, self.selected_planes))
+                view.add_item(RolePlaneSelect(role, self))  # <-- qui deve esserci self
             self.role_views.append(view)
 
         self.confirm_view = ConfirmButtonView(self)
+
 
 
     async def update_setup_message(self):
