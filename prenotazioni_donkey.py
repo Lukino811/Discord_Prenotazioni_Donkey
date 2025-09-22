@@ -229,16 +229,15 @@ class AddRoleButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         await interaction.response.send_modal(RoleInput(self.parent_view))
 
+# ===== PULSANTE CONFERMA EVENTO =====
 class ConfirmEventButton(discord.ui.Button):
     def __init__(self, parent_view):
         super().__init__(label="Conferma Evento", style=discord.ButtonStyle.primary)
         self.parent_view = parent_view
 
     async def callback(self, interaction: discord.Interaction):
-        # Deferiamo l'interazione per evitare errori di "Unknown interaction"
         await interaction.response.defer(ephemeral=True)
         await self.parent_view.finish_setup(interaction)
-
 
 class AddRoleButtonView(discord.ui.View):
     def __init__(self, parent_view):
@@ -270,34 +269,20 @@ class EventSetupView:
         save_bookings()
         plane_view = PlaneSelectView(self.data, self.desc, active_roles)
         embed = generate_embed(self.data, self.desc, active_roles)
-        # Ora possiamo usare followup perché l'interazione è stata deferita
         await interaction.followup.send(embed=embed, view=plane_view)
 
-
-
-
 # ============================ COMANDO SLASH ============================
-@bot.tree.command(name="prenotazioni", description="Crea un evento con ruoli e aerei")
+@app_commands.command(name="prenotazioni", description="Crea un evento con ruoli e aerei")
 @app_commands.describe(
     data="Data della missione (es. 2025-09-22 18:00)",
     desc="Breve descrizione della missione"
 )
-async def prenotazioni(
-    interaction: discord.Interaction,
-    data: str = app_commands.Param(description="Data della missione (es. 2025-09-22 18:00)"),
-    desc: str = app_commands.Param(description="Breve descrizione della missione")
-):
-    """
-    Avvia la creazione di un evento mostrando il modal per aggiungere ruoli e aerei.
-    """
+async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
     setup = EventSetupView(data, desc)
-    
-    # Deferiamo subito l'interazione per evitare timeout o errori
-    await interaction.response.defer(ephemeral=True)
-    
-    # Mostriamo il modal per aggiungere ruoli
     await setup.start(interaction)
 
+for guild_id in GUILD_IDS:
+    bot.tree.add_command(prenotazioni, guild=discord.Object(id=guild_id))
 
 # ============================ ON_READY ============================
 @bot.event
