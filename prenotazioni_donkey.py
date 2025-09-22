@@ -267,7 +267,7 @@ class EventSetupView:
         save_bookings()
         plane_view = PlaneSelectView(self.data, self.desc, active_roles)
         embed = generate_embed(self.data, self.desc, active_roles)
-        await interaction.followup.send(embed=embed, view=plane_view)
+       await interaction.response.send_message(embed=embed, view=plane_view)
 
 # ============================ COMANDO SLASH ============================
 @app_commands.command(name="prenotazioni", description="Crea un evento con ruoli e aerei")
