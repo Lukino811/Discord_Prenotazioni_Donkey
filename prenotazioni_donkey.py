@@ -235,7 +235,10 @@ class ConfirmEventButton(discord.ui.Button):
         self.parent_view = parent_view
 
     async def callback(self, interaction: discord.Interaction):
+        # Deferiamo l'interazione per evitare errori di "Unknown interaction"
+        await interaction.response.defer(ephemeral=True)
         await self.parent_view.finish_setup(interaction)
+
 
 class AddRoleButtonView(discord.ui.View):
     def __init__(self, parent_view):
@@ -267,7 +270,9 @@ class EventSetupView:
         save_bookings()
         plane_view = PlaneSelectView(self.data, self.desc, active_roles)
         embed = generate_embed(self.data, self.desc, active_roles)
+        # Ora possiamo usare followup perché l'interazione è stata deferita
         await interaction.followup.send(embed=embed, view=plane_view)
+
 
 
 
