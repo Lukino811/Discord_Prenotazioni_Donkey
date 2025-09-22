@@ -285,12 +285,9 @@ class EventSetupView:
 )
 async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
     setup = EventSetupView(data, desc)
-    
-    # Deferiamo subito l'interazione per evitare timeout o unknown interaction
-    await interaction.response.defer(ephemeral=True)
-    
     # Mostriamo subito il modal
     await setup.start(interaction)
+
 
 
 # ============================ ON_READY ============================
