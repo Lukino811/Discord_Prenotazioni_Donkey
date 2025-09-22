@@ -335,7 +335,7 @@ async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
     msg = await interaction.response.send_message("Configura i ruoli:", view=setup_view, ephemeral=True)
     setup_view.message = msg
 # ---------------------------- ON_READY ----------------------------
-@# ---------------------------- ON_READY ----------------------------
+# ---------------------------- ON_READY ----------------------------
 @bot.event
 async def on_ready():
     print(f"✅ Bot connesso come {bot.user}")
