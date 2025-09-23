@@ -134,6 +134,7 @@ class BookingView(discord.ui.View):
                 self.add_item(BookingButton(role, plane, active_roles))
 
 # ============================ EVENT SETUP ============================
+# ============================ EVENT SETUP ============================
 class EventSetupView:
     def __init__(self, data, desc):
         self.data = data
@@ -143,10 +144,18 @@ class EventSetupView:
         self.selected_image = BACKGROUND_URL
 
     async def continue_setup(self, interaction: discord.Interaction):
+        """
+        Continua la configurazione dell'evento dopo la scelta dell'immagine.
+        Evita di inviare due risposte sulla stessa interaction.
+        """
         from discord.ui import Modal, TextInput
 
         class RoleInput(Modal, title="Aggiungi Ruolo"):
-            role_name = TextInput(label="Nome ruolo", placeholder="Scrivi il nome del ruolo", max_length=50)
+            role_name = TextInput(
+                label="Nome ruolo",
+                placeholder="Scrivi il nome del ruolo",
+                max_length=50
+            )
 
             def __init__(self, parent):
                 super().__init__()
@@ -155,9 +164,28 @@ class EventSetupView:
             async def on_submit(self, interaction: discord.Interaction):
                 role = self.role_name.value.strip()
                 self.parent.roles.append(role)
-                await interaction.response.send_message(f"Ruolo **{role}** aggiunto! Scegli l'aereo:", ephemeral=True, view=PlaneSelectView(self.parent, role))
+                await interaction.response.send_message(
+                    f"Ruolo **{role}** aggiunto! Scegli l'aereo:",
+                    ephemeral=True,
+                    view=PlaneSelectView(self.parent, role)
+                )
 
-        await interaction.response.send_modal(RoleInput(self))
+        try:
+            if interaction.response.is_done():
+                # Interaction già usata: informiamo l'utente
+                await interaction.followup.send(
+                    "⚠️ Qualcosa è andato storto. Riprova cliccando di nuovo il pulsante per continuare.",
+                    ephemeral=True
+                )
+                return
+
+            await interaction.response.send_modal(RoleInput(self))
+
+        except Exception as e:
+            await interaction.followup.send(
+                f"⚠️ Errore durante l'apertura del modal: {e}",
+                ephemeral=True
+            )
 
     async def ask_next_role_or_confirm(self, interaction: discord.Interaction):
         if len(self.roles) < MAX_ROLES:
@@ -169,11 +197,16 @@ class EventSetupView:
         active_roles = {}
         for role in self.roles:
             plane_choice = self.selected_planes.get(role, "Non Attivo")
-            active_roles[role] = {"plane": plane_choice, "slots": DEFAULT_SLOTS, "users": []}
+            active_roles[role] = {
+                "plane": plane_choice,
+                "slots": DEFAULT_SLOTS,
+                "users": []
+            }
         bookings[self.data] = active_roles
         save_bookings()
         embed = generate_embed(self.data, self.desc, active_roles, self.selected_image)
         await interaction.followup.send(embed=embed, view=BookingView(active_roles))
+
 
 # ============================ COMANDO SLASH ============================
 @bot.tree.command(name="prenotazioni", description="Crea un evento con ruoli e aerei")
