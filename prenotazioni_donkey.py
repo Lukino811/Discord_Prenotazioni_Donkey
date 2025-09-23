@@ -112,26 +112,32 @@ class ConfirmEventButton(discord.ui.Button):
         await self.view_ref.parent_view.finish_setup(interaction)
 
 class BookingView(discord.ui.View):
-    def __init__(self, active_roles):
+    def __init__(self, active_roles, event_key):
         super().__init__(timeout=None)
+        self.active_roles = active_roles
+        self.event_key = event_key
         for role in active_roles:
             for plane in PLANES:
-                self.add_item(BookingButton(role, plane, active_roles))
+                self.add_item(BookingButton(role, plane, active_roles, event_key))
 
 class BookingButton(discord.ui.Button):
-    def __init__(self, role, plane, active_roles):
+    def __init__(self, role, plane, active_roles, event_key):
         super().__init__(label=f"{role} - {plane}", style=discord.ButtonStyle.primary)
         self.role = role
         self.plane = plane
         self.active_roles = active_roles
+        self.event_key = event_key
 
     async def callback(self, interaction: discord.Interaction):
+        # Rimuove l'utente da eventuali altri ruoli
         for r, info in self.active_roles.items():
             if interaction.user.name in info["users"]:
                 info["users"].remove(interaction.user.name)
+        # Aggiunge l'utente al ruolo scelto
         self.active_roles[self.role]["users"].append(interaction.user.name)
-        embed = generate_embed(list(bookings.keys())[-1], "", self.active_roles)
-        await interaction.response.edit_message(embed=embed, view=BookingView(self.active_roles))
+        # Aggiorna il messaggio
+        embed = generate_embed(self.event_key, "", self.active_roles)
+        await interaction.response.edit_message(embed=embed, view=BookingView(self.active_roles, self.event_key))
 
 # ============================ EVENT SETUP ============================
 class EventSetupView:
@@ -167,7 +173,8 @@ class EventSetupView:
         bookings[self.data] = active_roles
         save_bookings()
         embed = generate_embed(self.data, self.desc, active_roles, self.selected_image)
-        await interaction.followup.send(embed=embed, view=BookingView(active_roles))
+        view = BookingView(active_roles, self.data)
+        await interaction.followup.send(embed=embed, view=view)
 
 # ============================ COMANDO SLASH ============================
 @bot.tree.command(name="prenotazioni", description="Crea un evento con ruoli e aerei")
