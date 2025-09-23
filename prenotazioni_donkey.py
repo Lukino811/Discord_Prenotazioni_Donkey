@@ -92,8 +92,22 @@ class EventSetupView:
         self.selected_image = BACKGROUND_URL
 
     async def continue_setup(self, interaction: discord.Interaction):
-        # Qui va la logica di ruoli (RoleInput) già esistente
-        await interaction.followup.send("📝 Inserisci i ruoli per l'evento (funzione RoleInput deve essere definita)", ephemeral=True)
+        # Inizio flusso ruoli e aerei
+        from discord.ui import Modal, TextInput
+
+        class RoleInput(Modal, title="Aggiungi Ruolo"):
+            role_name = TextInput(label="Nome ruolo", placeholder="Scrivi il nome del ruolo", max_length=50)
+
+            def __init__(self, parent):
+                super().__init__()
+                self.parent = parent
+
+            async def on_submit(self, interaction):
+                self.parent.roles.append(self.role_name.value.strip())
+                await interaction.response.send_message(f"Ruolo **{self.role_name.value.strip()}** aggiunto.", ephemeral=True)
+                await self.parent.finish_setup(interaction)
+
+        await interaction.response.send_modal(RoleInput(self))
 
     async def finish_setup(self, interaction: discord.Interaction):
         active_roles = {}
@@ -116,16 +130,23 @@ async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
     view = ImageSelectView(setup)
     await interaction.response.send_message("📸 Scegli un'immagine per l'evento:", view=view, ephemeral=True)
 
+for gid in GUILD_IDS:
+    try:
+        bot.tree.add_command(prenotazioni, guild=discord.Object(id=gid))
+        print(f"🔧 Command /prenotazioni aggiunto localmente per guild {gid}")
+    except Exception as e:
+        print(f"Errore add_command per guild {gid}: {e}")
+
 # ============================ ON_READY ============================
 @bot.event
 async def on_ready():
     print(f"✅ Bot connesso come {bot.user}")
-    try:
-        for guild_id in GUILD_IDS:
-            synced = await bot.tree.sync(guild=discord.Object(id=guild_id))
-            print(f"🔄 Sincronizzati {len(synced)} comandi slash per guild {guild_id}")
-    except Exception as e:
-        print(f"Errore sync: {e}")
+    for gid in GUILD_IDS:
+        try:
+            synced = await bot.tree.sync(guild=discord.Object(id=gid))
+            print(f"🔄 Sincronizzati {len(synced)} comandi slash per guild {gid}: {[c.name for c in synced]}")
+        except Exception as e:
+            print(f"Errore sync per guild {gid}: {e}")
 
 # ============================ WEB SERVER ============================
 app = Flask('')
