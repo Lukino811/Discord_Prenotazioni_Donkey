@@ -177,6 +177,19 @@ class ImageLinkModal(discord.ui.Modal, title="Inserisci link immagine personaliz
         self.parent_view.selected_image = self.image_url.value.strip() or BACKGROUND_URL
         await interaction.response.send_message("📸 Immagine personalizzata impostata!", ephemeral=True)
         await self.parent_view.continue_setup(interaction)
+        
+        # ============================ ON_READY ============================
+@bot.event
+async def on_ready():
+    print(f"✅ Bot connesso come {bot.user}")
+    try:
+        # Sincronizza solo per la guild di test
+        guild = discord.Object(id=GUILD_ID)
+        synced = await bot.tree.sync(guild=guild)
+        print(f"🔄 Sincronizzati {len(synced)} comandi slash per guild {GUILD_ID}: {[c.name for c in synced]}")
+    except Exception as e:
+        print(f"Errore sync per guild {GUILD_ID}: {e}")
+
 
 # ============================ WEB SERVER ============================
 app = Flask('')
