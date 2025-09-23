@@ -63,14 +63,14 @@ class ImageLinkModal(discord.ui.Modal, title="Inserisci link immagine personaliz
         await self.parent_view.continue_setup(interaction)
 
 class ImageSelectButton(discord.ui.Button):
-    def __init__(self, parent_view, label, url=None):
+    def __init__(self, parent_view, label, is_default=False):
         super().__init__(label=label, style=discord.ButtonStyle.primary)
         self.parent_view = parent_view
-        self.url = url
+        self.is_default = is_default
 
     async def callback(self, interaction: discord.Interaction):
-        if self.url:
-            self.parent_view.selected_image = self.url
+        if self.is_default:
+            self.parent_view.selected_image = BACKGROUND_URL
             await interaction.response.send_message("🖼️ Usata immagine di default!", ephemeral=True)
             await self.parent_view.continue_setup(interaction)
         else:
@@ -79,8 +79,8 @@ class ImageSelectButton(discord.ui.Button):
 class ImageSelectView(discord.ui.View):
     def __init__(self, parent_view):
         super().__init__(timeout=None)
-        self.add_item(ImageSelectButton(parent_view, label="Usa immagine di default", url=BACKGROUND_URL))
-        self.add_item(ImageSelectButton(parent_view, label="Inserisci link immagine personalizzata"))
+        self.add_item(ImageSelectButton(parent_view, label="Usa immagine di default", is_default=True))
+        self.add_item(ImageSelectButton(parent_view, label="Inserisci link immagine personalizzata", is_default=False))
 
 # ============================ EVENT SETUP ============================
 class EventSetupView:
@@ -92,7 +92,7 @@ class EventSetupView:
         self.selected_image = BACKGROUND_URL
 
     async def continue_setup(self, interaction: discord.Interaction):
-        # Inizio flusso ruoli e aerei
+        # Modal per aggiunta ruolo
         from discord.ui import Modal, TextInput
 
         class RoleInput(Modal, title="Aggiungi Ruolo"):
