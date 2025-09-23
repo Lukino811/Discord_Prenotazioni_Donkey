@@ -193,18 +193,13 @@ async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
     creator = EventCreator(data, desc)
     view = ImageSelectView(creator)
     try:
-        await interaction.response.defer(ephemeral=True)
-        await interaction.followup.send("📸 Scegli un'immagine per l'evento:", view=view, ephemeral=True)
+        await interaction.response.send_message("📸 Scegli un'immagine per l'evento:", view=view, ephemeral=True)
     except Exception as e:
         print(f"Errore invio view in /prenotazioni: {e}")
         try:
-            await interaction.response.send_message("📸 Scegli un'immagine per l'evento:", view=view, ephemeral=True)
-        except Exception as e2:
-            print(f"Fallback inviato fallito: {e2}")
-            try:
-                await interaction.followup.send("❌ Errore interno durante l'apertura del setup. Riprova.", ephemeral=True)
-            except Exception:
-                pass
+            await interaction.followup.send("❌ Errore interno durante l'apertura del setup. Riprova.", ephemeral=True)
+        except Exception:
+            pass
 
 # ============================ SYNC E ON_READY ============================
 @bot.event
