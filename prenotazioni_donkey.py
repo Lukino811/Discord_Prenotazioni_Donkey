@@ -58,9 +58,9 @@ class ImageLinkModal(discord.ui.Modal, title="Inserisci link immagine personaliz
         self.parent_view = parent_view
 
     async def on_submit(self, interaction: discord.Interaction):
+        # Salva immagine e mostra il pulsante per aggiungere ruoli (usa response once)
         self.parent_view.selected_image = self.image_url.value.strip() or BACKGROUND_URL
-        await self.parent_view.continue_setup(interaction)
-        await interaction.followup.send("📸 Immagine personalizzata impostata!", ephemeral=True)
+        await interaction.response.send_message("📝 Ora aggiungi i ruoli per l'evento:", view=AddRoleButtonView(self.parent_view), ephemeral=True)
 
 class ImageSelectButton(discord.ui.Button):
     def __init__(self, parent_view, label, is_default=False):
@@ -70,10 +70,11 @@ class ImageSelectButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         if self.is_default:
+            # Imposta immagine predefinita e mostra view per aggiungere ruoli
             self.parent_view.selected_image = BACKGROUND_URL
-            await self.parent_view.continue_setup(interaction)
-            await interaction.followup.send("🖼️ Usata immagine di default!", ephemeral=True)
+            await interaction.response.send_message("📝 Ora aggiungi i ruoli per l'evento:", view=AddRoleButtonView(self.parent_view), ephemeral=True)
         else:
+            # Apri modal per inserire URL immagine
             await interaction.response.send_modal(ImageLinkModal(self.parent_view))
 
 class ImageSelectView(discord.ui.View):
@@ -81,6 +82,36 @@ class ImageSelectView(discord.ui.View):
         super().__init__(timeout=None)
         self.add_item(ImageSelectButton(parent_view, label="Usa immagine di default", is_default=True))
         self.add_item(ImageSelectButton(parent_view, label="Inserisci link immagine personalizzata", is_default=False))
+
+# ============================ MODALE RUOLO (definita globalmente) ============================
+class RoleInput(discord.ui.Modal, title="Aggiungi Ruolo"):
+    role_name = discord.ui.TextInput(label="Nome ruolo", placeholder="Scrivi il nome del ruolo", max_length=50)
+
+    def __init__(self, parent_view):
+        super().__init__()
+        self.parent_view = parent_view
+
+    async def on_submit(self, interaction: discord.Interaction):
+        # Quando l'utente invia la modale, riconosciamo l'interazione e procediamo
+        await interaction.response.defer(ephemeral=True)
+        self.parent_view.roles.append(self.role_name.value.strip())
+        await self.parent_view.finish_setup(interaction)
+        await interaction.followup.send(f"✅ Ruolo **{self.role_name.value.strip()}** aggiunto.", ephemeral=True)
+
+# ============================ VIEW PER AVVIARE IL SETUP DEI RUOLI ============================
+class AddRoleButton(discord.ui.Button):
+    def __init__(self, parent_view):
+        super().__init__(label="Aggiungi Ruolo", style=discord.ButtonStyle.success)
+        self.parent_view = parent_view
+
+    async def callback(self, interaction: discord.Interaction):
+        # Apri la modale RoleInput
+        await interaction.response.send_modal(RoleInput(self.parent_view))
+
+class AddRoleButtonView(discord.ui.View):
+    def __init__(self, parent_view):
+        super().__init__(timeout=None)
+        self.add_item(AddRoleButton(parent_view))
 
 # ============================ EVENT SETUP ============================
 class EventSetupView:
@@ -91,24 +122,8 @@ class EventSetupView:
         self.selected_planes = {}
         self.selected_image = BACKGROUND_URL
 
-    async def continue_setup(self, interaction: discord.Interaction):
-        from discord.ui import Modal, TextInput
-
-        class RoleInput(Modal, title="Aggiungi Ruolo"):
-            role_name = TextInput(label="Nome ruolo", placeholder="Scrivi il nome del ruolo", max_length=50)
-
-            def __init__(self, parent):
-                super().__init__()
-                self.parent = parent
-
-            async def on_submit(self, interaction):
-                self.parent.roles.append(self.role_name.value.strip())
-                await self.parent.finish_setup(interaction)
-                await interaction.followup.send(f"Ruolo **{self.role_name.value.strip()}** aggiunto.", ephemeral=True)
-
-        await interaction.response.send_modal(RoleInput(self))
-
     async def finish_setup(self, interaction: discord.Interaction):
+        # Crea la struttura active_roles e invia l'embed finale
         active_roles = {}
         for role in self.roles:
             plane_choice = self.selected_planes.get(role, "Non Attivo")
@@ -129,6 +144,7 @@ async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
     view = ImageSelectView(setup)
     await interaction.response.send_message("📸 Scegli un'immagine per l'evento:", view=view, ephemeral=True)
 
+# Associa comando a tutte le guild (aggiunta esplicita per comparsa immediata)
 for gid in GUILD_IDS:
     try:
         bot.tree.add_command(prenotazioni, guild=discord.Object(id=gid))
