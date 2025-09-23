@@ -59,8 +59,8 @@ class ImageLinkModal(discord.ui.Modal, title="Inserisci link immagine personaliz
 
     async def on_submit(self, interaction: discord.Interaction):
         self.parent_view.selected_image = self.image_url.value.strip() or BACKGROUND_URL
-        await interaction.response.send_message("📸 Immagine personalizzata impostata!", ephemeral=True)
         await self.parent_view.continue_setup(interaction)
+        await interaction.followup.send("📸 Immagine personalizzata impostata!", ephemeral=True)
 
 class ImageSelectButton(discord.ui.Button):
     def __init__(self, parent_view, label, is_default=False):
@@ -71,8 +71,8 @@ class ImageSelectButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         if self.is_default:
             self.parent_view.selected_image = BACKGROUND_URL
-            await interaction.response.send_message("🖼️ Usata immagine di default!", ephemeral=True)
             await self.parent_view.continue_setup(interaction)
+            await interaction.followup.send("🖼️ Usata immagine di default!", ephemeral=True)
         else:
             await interaction.response.send_modal(ImageLinkModal(self.parent_view))
 
@@ -92,7 +92,6 @@ class EventSetupView:
         self.selected_image = BACKGROUND_URL
 
     async def continue_setup(self, interaction: discord.Interaction):
-        # Modal per aggiunta ruolo
         from discord.ui import Modal, TextInput
 
         class RoleInput(Modal, title="Aggiungi Ruolo"):
@@ -104,8 +103,8 @@ class EventSetupView:
 
             async def on_submit(self, interaction):
                 self.parent.roles.append(self.role_name.value.strip())
-                await interaction.response.send_message(f"Ruolo **{self.role_name.value.strip()}** aggiunto.", ephemeral=True)
                 await self.parent.finish_setup(interaction)
+                await interaction.followup.send(f"Ruolo **{self.role_name.value.strip()}** aggiunto.", ephemeral=True)
 
         await interaction.response.send_modal(RoleInput(self))
 
