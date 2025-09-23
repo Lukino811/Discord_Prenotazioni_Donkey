@@ -51,13 +51,6 @@ def generate_embed(data: str, desc: str, active_roles: dict, image_url: str = BA
     return embed
 
 # ============================ VIEWS E BUTTON ============================
-class ImageSelectView(discord.ui.View):
-    def __init__(self, parent_view):
-        super().__init__(timeout=None)
-        self.parent_view = parent_view
-        self.add_item(ImageSelectButton(parent_view, label="Usa immagine di default", is_default=True))
-        self.add_item(ImageSelectButton(parent_view, label="Inserisci link immagine personalizzata", is_default=False))
-
 class ImageSelectButton(discord.ui.Button):
     def __init__(self, parent_view, label, is_default=False):
         super().__init__(label=label, style=discord.ButtonStyle.primary)
@@ -72,6 +65,12 @@ class ImageSelectButton(discord.ui.Button):
         else:
             await interaction.response.send_modal(ImageLinkModal(self.parent_view))
 
+class ImageSelectView(discord.ui.View):
+    def __init__(self, parent_view):
+        super().__init__(timeout=None)
+        self.add_item(ImageSelectButton(parent_view, "Usa immagine di default", is_default=True))
+        self.add_item(ImageSelectButton(parent_view, "Inserisci link immagine personalizzata", is_default=False))
+
 class ImageLinkModal(discord.ui.Modal, title="Inserisci link immagine personalizzata"):
     image_url = discord.ui.TextInput(label="URL immagine", placeholder="https://...", max_length=500)
 
@@ -84,60 +83,58 @@ class ImageLinkModal(discord.ui.Modal, title="Inserisci link immagine personaliz
         await interaction.response.send_message("📸 Immagine personalizzata impostata!", ephemeral=True)
         await self.parent_view.continue_setup(interaction)
 
+class PlaneButton(discord.ui.Button):
+    def __init__(self, plane, parent_view, role):
+        super().__init__(label=plane, style=discord.ButtonStyle.primary)
+        self.plane = plane
+        self.parent_view = parent_view
+        self.role = role
+
+    async def callback(self, interaction: discord.Interaction):
+        self.parent_view.selected_planes[self.role] = self.plane
+        await interaction.response.send_message(f"Aereo **{self.plane}** assegnato al ruolo **{self.role}**.", ephemeral=True)
+        await self.parent_view.ask_next_role(interaction)
+
+class ConfirmEventButton(discord.ui.Button):
+    def __init__(self, parent_view):
+        super().__init__(label="Conferma evento", style=discord.ButtonStyle.success)
+        self.parent_view = parent_view
+
+    async def callback(self, interaction: discord.Interaction):
+        await self.parent_view.finish_setup(interaction)
+
 class PlaneSelectView(discord.ui.View):
     def __init__(self, parent_view, role):
         super().__init__(timeout=None)
         self.parent_view = parent_view
         self.role = role
         for plane in PLANES:
-            self.add_item(PlaneButton(self, plane))
-        self.add_item(ConfirmEventButton(self))
-
-class PlaneButton(discord.ui.Button):
-    def __init__(self, view, plane):
-        super().__init__(label=plane, style=discord.ButtonStyle.primary)
-        self.view_ref = view
-        self.plane = plane
-
-    async def callback(self, interaction: discord.Interaction):
-        self.view_ref.parent_view.selected_planes[self.view_ref.role] = self.plane
-        await interaction.response.send_message(f"Aereo **{self.plane}** assegnato al ruolo **{self.view_ref.role}**.", ephemeral=True)
-
-class ConfirmEventButton(discord.ui.Button):
-    def __init__(self, view):
-        super().__init__(label="Conferma evento", style=discord.ButtonStyle.success)
-        self.view_ref = view
-
-    async def callback(self, interaction: discord.Interaction):
-        await self.view_ref.parent_view.finish_setup(interaction)
-
-class BookingView(discord.ui.View):
-    def __init__(self, active_roles, event_key):
-        super().__init__(timeout=None)
-        self.active_roles = active_roles
-        self.event_key = event_key
-        for role in active_roles:
-            for plane in PLANES:
-                self.add_item(BookingButton(role, plane, active_roles, event_key))
+            self.add_item(PlaneButton(plane, parent_view, role))
+        self.add_item(ConfirmEventButton(parent_view))
 
 class BookingButton(discord.ui.Button):
-    def __init__(self, role, plane, active_roles, event_key):
+    def __init__(self, role, plane, active_roles):
         super().__init__(label=f"{role} - {plane}", style=discord.ButtonStyle.primary)
         self.role = role
         self.plane = plane
         self.active_roles = active_roles
-        self.event_key = event_key
 
     async def callback(self, interaction: discord.Interaction):
-        # Rimuove l'utente da eventuali altri ruoli
+        # Rimuovi l'utente da eventuali altri ruoli
         for r, info in self.active_roles.items():
             if interaction.user.name in info["users"]:
                 info["users"].remove(interaction.user.name)
-        # Aggiunge l'utente al ruolo scelto
+        # Aggiungi all'attuale
         self.active_roles[self.role]["users"].append(interaction.user.name)
-        # Aggiorna il messaggio
-        embed = generate_embed(self.event_key, "", self.active_roles)
-        await interaction.response.edit_message(embed=embed, view=BookingView(self.active_roles, self.event_key))
+        embed = generate_embed(list(bookings.keys())[-1], "", self.active_roles)
+        await interaction.response.edit_message(embed=embed, view=BookingView(self.active_roles))
+
+class BookingView(discord.ui.View):
+    def __init__(self, active_roles):
+        super().__init__(timeout=None)
+        for role in active_roles:
+            for plane in PLANES:
+                self.add_item(BookingButton(role, plane, active_roles))
 
 # ============================ EVENT SETUP ============================
 class EventSetupView:
@@ -147,8 +144,14 @@ class EventSetupView:
         self.roles = []
         self.selected_planes = {}
         self.selected_image = BACKGROUND_URL
+        self.role_index = 0
 
     async def continue_setup(self, interaction: discord.Interaction):
+        # Se abbiamo raggiunto il massimo o vogliamo confermare evento
+        if self.role_index >= MAX_ROLES:
+            await self.finish_setup(interaction)
+            return
+
         from discord.ui import Modal, TextInput
 
         class RoleInput(Modal, title="Aggiungi Ruolo"):
@@ -156,14 +159,21 @@ class EventSetupView:
 
             def __init__(self, parent):
                 super().__init__()
-                self.parent = parent
+                self.parent_view = parent
 
             async def on_submit(self, interaction: discord.Interaction):
                 role = self.role_name.value.strip()
-                self.parent.roles.append(role)
-                await interaction.response.send_message(f"Ruolo **{role}** aggiunto! Scegli l'aereo:", ephemeral=True, view=PlaneSelectView(self.parent, role))
+                self.parent_view.roles.append(role)
+                await interaction.response.send_message(f"Ruolo **{role}** aggiunto! Scegli l'aereo:", ephemeral=True, view=PlaneSelectView(self.parent_view, role))
 
         await interaction.response.send_modal(RoleInput(self))
+
+    async def ask_next_role(self, interaction: discord.Interaction):
+        self.role_index += 1
+        if self.role_index < MAX_ROLES:
+            await self.continue_setup(interaction)
+        else:
+            await self.finish_setup(interaction)
 
     async def finish_setup(self, interaction: discord.Interaction):
         active_roles = {}
@@ -173,8 +183,7 @@ class EventSetupView:
         bookings[self.data] = active_roles
         save_bookings()
         embed = generate_embed(self.data, self.desc, active_roles, self.selected_image)
-        view = BookingView(active_roles, self.data)
-        await interaction.followup.send(embed=embed, view=view)
+        await interaction.followup.send(embed=embed, view=BookingView(active_roles))
 
 # ============================ COMANDO SLASH ============================
 @bot.tree.command(name="prenotazioni", description="Crea un evento con ruoli e aerei")
