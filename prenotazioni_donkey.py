@@ -57,7 +57,6 @@ def generate_embed(data: str, desc: str, active_roles: dict, image_url: str = BA
 
 # ============================ EVENT SETUP ============================
 class EventSetupView:
-    """Gestisce il flusso di creazione evento: immagine → ruoli → aerei → conferma"""
     def __init__(self, data, desc):
         self.data = data
         self.desc = desc
@@ -65,7 +64,6 @@ class EventSetupView:
         self.selected_planes = {}
         self.selected_image = BACKGROUND_URL
 
-    # Continua il setup dopo la scelta immagine o aggiunta ruolo
     async def continue_setup(self, interaction: discord.Interaction):
         from discord.ui import Modal, TextInput
 
@@ -80,18 +78,13 @@ class EventSetupView:
                 role = self.role_name.value.strip()
                 self.parent.roles.append(role)
                 try:
-                    # Mostra selezione aereo per questo ruolo
                     await interaction.response.send_message(
                         f"Ruolo **{role}** aggiunto! Seleziona l'aereo:",
                         ephemeral=True,
                         view=PlaneSelectForRoleView(self.parent, role)
                     )
                 except Exception:
-                    # Se l'interaction è già stata usata
-                    await interaction.followup.send(
-                        f"⚠️ Errore durante la selezione aereo per **{role}**",
-                        ephemeral=True
-                    )
+                    await interaction.followup.send(f"⚠️ Errore durante la selezione aereo per **{role}**", ephemeral=True)
 
         try:
             if interaction.response.is_done():
@@ -99,19 +92,14 @@ class EventSetupView:
             else:
                 await interaction.response.send_modal(RoleInput(self))
         except Exception as e:
-            await interaction.followup.send(
-                f"⚠️ Errore durante apertura modal: {e}",
-                ephemeral=True
-            )
+            await interaction.followup.send(f"⚠️ Errore durante apertura modal: {e}", ephemeral=True)
 
-    # Chiede di aggiungere il prossimo ruolo o termina
     async def ask_next_role_or_confirm(self, interaction: discord.Interaction):
         if len(self.roles) < MAX_ROLES:
             await self.continue_setup(interaction)
         else:
             await self.finish_setup(interaction)
 
-    # Completa setup e invia embed con pulsanti di prenotazione
     async def finish_setup(self, interaction: discord.Interaction):
         active_roles = {}
         for role in self.roles:
@@ -123,7 +111,6 @@ class EventSetupView:
         await interaction.followup.send(embed=embed, view=BookingView(active_roles))
 
 # ============================ VIEWS ============================
-# Selezione immagine
 class ImageLinkModal(discord.ui.Modal, title="Inserisci link immagine personalizzata"):
     image_url = discord.ui.TextInput(label="URL immagine", placeholder="https://...", max_length=500)
     def __init__(self, parent_view):
@@ -153,7 +140,6 @@ class ImageSelectView(discord.ui.View):
         self.add_item(ImageSelectButton(parent_view, "Usa immagine di default", is_default=True))
         self.add_item(ImageSelectButton(parent_view, "Inserisci link immagine personalizzata", is_default=False))
 
-# Selezione aereo per ruolo
 class PlaneSelectForRole(discord.ui.Select):
     def __init__(self, parent_view, role_name):
         options = [discord.SelectOption(label=p, value=p) for p in PLANES + ["Non Attivo"]]
@@ -169,7 +155,6 @@ class PlaneSelectForRoleView(discord.ui.View):
         super().__init__(timeout=None)
         self.add_item(PlaneSelectForRole(parent_view, role_name))
 
-# Pulsanti prenotazione finale
 class BookingButton(discord.ui.Button):
     def __init__(self, role, active_roles):
         super().__init__(label=role, style=discord.ButtonStyle.primary)
@@ -195,11 +180,7 @@ class BookingView(discord.ui.View):
 @app_commands.describe(data="Data della missione", desc="Breve descrizione della missione")
 async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
     setup = EventSetupView(data, desc)
-    await interaction.response.send_message(
-        "📸 Scegli un'immagine per l'evento:",
-        ephemeral=True,
-        view=ImageSelectView(setup)
-    )
+    await interaction.response.send_message("📸 Scegli un'immagine per l'evento:", ephemeral=True, view=ImageSelectView(setup))
 
 # ============================ ON_READY ============================
 @bot.event
