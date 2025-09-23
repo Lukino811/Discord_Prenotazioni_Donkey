@@ -14,6 +14,7 @@ if not TOKEN:
 GUILD_IDS = [1358713154116259892, 687741871757197312]
 BACKGROUND_URL = "https://cdn.discordapp.com/attachments/710523786558046298/1403090934857728001/BCO.png"
 DEFAULT_SLOTS = 4
+MAX_ROLES = 5
 
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -28,6 +29,7 @@ def save_bookings():
     with open("prenotazioni.json", "w") as f:
         json.dump(bookings, f, indent=4)
 
+# ============================ EMBED ============================
 def generate_embed(data: str, desc: str, active_roles: dict, image_url: str = BACKGROUND_URL):
     embed = discord.Embed(title="📋 Prenotazioni Piloti",
                           description=f"📅 Missione: {data}\n📝 {desc}",
@@ -41,6 +43,7 @@ def generate_embed(data: str, desc: str, active_roles: dict, image_url: str = BA
     embed.set_image(url=image_url)
     return embed
 
+# ============================ IMMAGINE ============================
 class ImageLinkModal(discord.ui.Modal, title="Inserisci link immagine personalizzata"):
     image_url = discord.ui.TextInput(label="URL immagine", placeholder="https://...", max_length=500)
 
@@ -71,6 +74,7 @@ class ImageSelectView(discord.ui.View):
         self.add_item(ImageSelectButton(parent_view, label="Usa immagine di default", is_default=True))
         self.add_item(ImageSelectButton(parent_view, label="Inserisci link immagine personalizzata", is_default=False))
 
+# ============================ RUOLI ============================
 class RoleInput(discord.ui.Modal, title="Aggiungi Ruolo"):
     role_name = discord.ui.TextInput(label="Nome ruolo", placeholder="Scrivi il nome del ruolo", max_length=50)
 
@@ -80,9 +84,11 @@ class RoleInput(discord.ui.Modal, title="Aggiungi Ruolo"):
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
+        if len(self.parent_view.roles) >= MAX_ROLES:
+            await interaction.followup.send(f"❌ Massimo {MAX_ROLES} ruoli raggiunto.", ephemeral=True)
+            return
         self.parent_view.roles.append(self.role_name.value.strip())
-        # Rimani nella view per poter aggiungere più ruoli
-        await interaction.followup.send(f"✅ Ruolo **{self.role_name.value.strip()}** aggiunto. Clicca di nuovo 'Aggiungi Ruolo' per un altro ruolo.", view=AddRoleButtonView(self.parent_view), ephemeral=True)
+        await interaction.followup.send(f"✅ Ruolo **{self.role_name.value.strip()}** aggiunto. Clicca di nuovo 'Aggiungi Ruolo' per un altro ruolo o conferma evento.", view=AddRoleButtonView(self.parent_view), ephemeral=True)
 
 class AddRoleButton(discord.ui.Button):
     def __init__(self, parent_view):
@@ -97,6 +103,7 @@ class AddRoleButtonView(discord.ui.View):
         super().__init__(timeout=None)
         self.add_item(AddRoleButton(parent_view))
 
+# ============================ EVENT SETUP ============================
 class EventSetupView:
     def __init__(self, data, desc):
         self.data = data
@@ -115,6 +122,7 @@ class EventSetupView:
         embed = generate_embed(self.data, self.desc, active_roles, self.selected_image)
         await interaction.followup.send(embed=embed)
 
+# ============================ COMANDO SLASH ============================
 @bot.tree.command(name="prenotazioni", description="Crea un evento con ruoli, aerei e scelta immagine")
 @app_commands.describe(data="Data della missione (es. 2025-09-22 18:00)", desc="Breve descrizione della missione")
 async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
@@ -129,6 +137,7 @@ for gid in GUILD_IDS:
     except Exception as e:
         print(f"Errore add_command per guild {gid}: {e}")
 
+# ============================ ON_READY ============================
 @bot.event
 async def on_ready():
     print(f"✅ Bot connesso come {bot.user}")
@@ -139,6 +148,7 @@ async def on_ready():
         except Exception as e:
             print(f"Errore sync per guild {gid}: {e}")
 
+# ============================ WEB SERVER ============================
 app = Flask('')
 @app.route('/')
 def home():
