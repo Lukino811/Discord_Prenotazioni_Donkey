@@ -12,13 +12,14 @@ TOKEN = os.environ.get("DISCORD_TOKEN")
 if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN non trovato — imposta la variabile d'ambiente")
 
-# Guild in cui registrare i comandi
-GUILD_IDS = [1358713154116259892, 687741871757197312]
+# Guild in cui registrare i comandi (solo una per test)
+GUILD_ID = 1358713154116259892
 
 # Impostazioni di default
 BACKGROUND_URL = "https://cdn.discordapp.com/attachments/710523786558046298/1403090934857728001/BCO.png"
 MAX_ROLES = 5
 DEFAULT_SLOTS = 4
+PLANES = ["FA-18C", "F-16C"]
 
 # ============================ BOT ============================
 intents = discord.Intents.default()
@@ -49,8 +50,8 @@ def generate_embed(data: str, desc: str, active_roles: dict, image_url: str = BA
     embed.set_image(url=image_url)
     return embed
 
-# ============================ EVENT CREATOR ============================
-class EventCreator:
+# ============================ EVENT SETUP ============================
+class EventSetupView:
     def __init__(self, data, desc):
         self.data = data
         self.desc = desc
@@ -58,159 +59,124 @@ class EventCreator:
         self.selected_planes = {}
         self.selected_image = BACKGROUND_URL
 
-    def to_active_roles(self):
-        active = {}
-        for r in self.roles:
-            active[r] = {"plane": self.selected_planes.get(r, "Non Attivo"), "slots": DEFAULT_SLOTS, "users": []}
-        return active
+    async def continue_setup(self, interaction: discord.Interaction):
+        from discord.ui import Modal, TextInput
+
+        class RoleInput(Modal, title="Aggiungi Ruolo"):
+            role_name = TextInput(label="Nome ruolo", placeholder="Scrivi il nome del ruolo", max_length=50)
+
+            def __init__(self, parent):
+                super().__init__()
+                self.parent = parent
+
+            async def on_submit(self, interaction: discord.Interaction):
+                role = self.role_name.value.strip()
+                self.parent.roles.append(role)
+                await interaction.response.send_message(f"Ruolo **{role}** aggiunto! Scegli l'aereo:", ephemeral=True, view=PlaneSelectView(self.parent, role))
+
+        await interaction.response.send_modal(RoleInput(self))
 
     async def finish_setup(self, interaction: discord.Interaction):
-        active_roles = self.to_active_roles()
+        active_roles = {}
+        for role in self.roles:
+            plane_choice = self.selected_planes.get(role, "Non Attivo")
+            active_roles[role] = {"plane": plane_choice, "slots": DEFAULT_SLOTS, "users": []}
         bookings[self.data] = active_roles
         save_bookings()
         embed = generate_embed(self.data, self.desc, active_roles, self.selected_image)
-        await interaction.response.send_message(embed=embed, view=BookingView(self))
+        await interaction.followup.send(embed=embed, view=BookingView(active_roles))
 
-# ============================ IMAGE SELECTION ============================
-class ImageLinkModal(discord.ui.Modal, title="Inserisci link immagine personalizzata"):
-    image_url = discord.ui.TextInput(label="URL immagine", placeholder="https://...", max_length=500)
+# ============================ VIEWS ============================
+class PlaneSelectView(discord.ui.View):
+    def __init__(self, parent_view, role):
+        super().__init__(timeout=None)
+        self.parent_view = parent_view
+        self.role = role
+        for plane in PLANES:
+            self.add_item(PlaneButton(self, plane))
+        self.add_item(ConfirmEventButton(self))
 
-    def __init__(self, creator):
-        super().__init__()
-        self.creator_ref = creator
+class PlaneButton(discord.ui.Button):
+    def __init__(self, view, plane):
+        super().__init__(label=plane, style=discord.ButtonStyle.primary)
+        self.view_ref = view
+        self.plane = plane
 
-    async def on_submit(self, interaction: discord.Interaction):
-        self.creator_ref.selected_image = self.image_url.value.strip() or BACKGROUND_URL
-        await interaction.response.send_message("🖼️ Immagine impostata. Ora puoi aggiungere ruoli o confermare l'evento.", view=AddRoleConfirmView(self.creator_ref), ephemeral=True)
+    async def callback(self, interaction: discord.Interaction):
+        self.view_ref.parent_view.selected_planes[self.view_ref.role] = self.plane
+        await interaction.response.send_message(f"Aereo **{self.plane}** assegnato al ruolo **{self.view_ref.role}**.", ephemeral=True)
+
+class ConfirmEventButton(discord.ui.Button):
+    def __init__(self, view):
+        super().__init__(label="Conferma evento", style=discord.ButtonStyle.success)
+        self.view_ref = view
+
+    async def callback(self, interaction: discord.Interaction):
+        await self.view_ref.parent_view.finish_setup(interaction)
+
+class BookingView(discord.ui.View):
+    def __init__(self, active_roles):
+        super().__init__(timeout=None)
+        for role in active_roles:
+            for plane in PLANES:
+                self.add_item(BookingButton(role, plane, active_roles))
+
+class BookingButton(discord.ui.Button):
+    def __init__(self, role, plane, active_roles):
+        label = f"{role} - {plane}"
+        super().__init__(label=label, style=discord.ButtonStyle.primary)
+        self.role = role
+        self.plane = plane
+        self.active_roles = active_roles
+
+    async def callback(self, interaction: discord.Interaction):
+        for r, info in self.active_roles.items():
+            if interaction.user.name in info["users"]:
+                info["users"].remove(interaction.user.name)
+        if interaction.user.name not in self.active_roles[self.role]["users"]:
+            self.active_roles[self.role]["users"].append(interaction.user.name)
+        embed = generate_embed(list(bookings.keys())[-1], "", self.active_roles)
+        await interaction.response.edit_message(embed=embed, view=BookingView(self.active_roles))
+
+# ============================ COMANDO SLASH ============================
+@bot.tree.command(name="prenotazioni", description="Crea un evento con ruoli e aerei")
+@app_commands.describe(data="Data della missione", desc="Breve descrizione della missione")
+async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
+    setup = EventSetupView(data, desc)
+    await interaction.response.send_message(f"📸 Scegli un'immagine per l'evento:", ephemeral=True, view=ImageSelectView(setup))
+
+class ImageSelectView(discord.ui.View):
+    def __init__(self, parent_view):
+        super().__init__(timeout=None)
+        self.parent_view = parent_view
+        self.add_item(ImageSelectButton(self, label="Usa immagine di default", is_default=True))
+        self.add_item(ImageSelectButton(self, label="Inserisci link immagine personalizzata", is_default=False))
 
 class ImageSelectButton(discord.ui.Button):
-    def __init__(self, creator, label, is_default=False):
+    def __init__(self, parent_view, label, is_default=False):
         super().__init__(label=label, style=discord.ButtonStyle.primary)
-        self.creator_ref = creator
+        self.parent_view_ref = parent_view
         self.is_default = is_default
 
     async def callback(self, interaction: discord.Interaction):
         if self.is_default:
-            self.creator_ref.selected_image = BACKGROUND_URL
-            await interaction.response.send_message("🖼️ Usata immagine di default. Ora puoi aggiungere ruoli o confermare l'evento.", view=AddRoleConfirmView(self.creator_ref), ephemeral=True)
+            self.parent_view_ref.parent_view.selected_image = BACKGROUND_URL
+            await interaction.response.send_message("🖼️ Usata immagine di default!", ephemeral=True)
+            await self.parent_view_ref.parent_view.continue_setup(interaction)
         else:
-            await interaction.response.send_modal(ImageLinkModal(self.creator_ref))
+            await interaction.response.send_modal(ImageLinkModal(self.parent_view_ref.parent_view))
 
-class ImageSelectView(discord.ui.View):
-    def __init__(self, creator):
-        super().__init__(timeout=None)
-        self.add_item(ImageSelectButton(creator, label="Usa immagine di default", is_default=True))
-        self.add_item(ImageSelectButton(creator, label="Inserisci link immagine personalizzata", is_default=False))
+class ImageLinkModal(discord.ui.Modal, title="Inserisci link immagine personalizzata"):
+    image_url = discord.ui.TextInput(label="URL immagine", placeholder="https://...", max_length=500)
 
-# ============================ ROLE & PLANE SELECTION ============================
-class RoleModal(discord.ui.Modal, title="Aggiungi Ruolo"):
-    role_name = discord.ui.TextInput(label="Nome ruolo", placeholder="Es. Leader", max_length=50)
-
-    def __init__(self, creator):
+    def __init__(self, parent_view):
         super().__init__()
-        self.creator_ref = creator
+        self.parent_view = parent_view
 
     async def on_submit(self, interaction: discord.Interaction):
-        role = self.role_name.value.strip()
-        if not role or len(self.creator_ref.roles) >= MAX_ROLES:
-            await interaction.response.send_message(f"❌ Nome ruolo non valido o massimo ruoli raggiunto ({MAX_ROLES}).", ephemeral=True)
-            return
-        await interaction.response.send_message(f"✈️ Seleziona aereo per il ruolo **{role}**", view=PlaneSelectView(self.creator_ref, role), ephemeral=True)
-
-class PlaneButton(discord.ui.Button):
-    def __init__(self, creator, role, plane):
-        super().__init__(label=plane, style=discord.ButtonStyle.primary)
-        self.creator_ref = creator
-        self.role = role
-        self.plane = plane
-
-    async def callback(self, interaction: discord.Interaction):
-        if self.role not in self.creator_ref.roles:
-            self.creator_ref.roles.append(self.role)
-        self.creator_ref.selected_planes[self.role] = self.plane
-        await interaction.response.send_message(f"✅ Ruolo **{self.role}** assegnato a **{self.plane}**. Puoi aggiungere un altro ruolo o confermare l'evento.", view=AddRoleConfirmView(self.creator_ref), ephemeral=True)
-
-class PlaneSelectView(discord.ui.View):
-    def __init__(self, creator, role):
-        super().__init__(timeout=None)
-        self.add_item(PlaneButton(creator, role, "F-16C"))
-        self.add_item(PlaneButton(creator, role, "FA-18C"))
-
-# ============================ ADD/CONFIRM ROLE ============================
-class AddRoleButton(discord.ui.Button):
-    def __init__(self, creator):
-        super().__init__(label="Aggiungi Ruolo", style=discord.ButtonStyle.success)
-        self.creator_ref = creator
-
-    async def callback(self, interaction: discord.Interaction):
-        await interaction.response.send_modal(RoleModal(self.creator_ref))
-
-class ConfirmEventButton(discord.ui.Button):
-    def __init__(self, creator):
-        super().__init__(label="Conferma Evento", style=discord.ButtonStyle.primary)
-        self.creator_ref = creator
-
-    async def callback(self, interaction: discord.Interaction):
-        if not self.creator_ref.roles:
-            await interaction.response.send_message("❌ Devi aggiungere almeno un ruolo prima di confermare.", ephemeral=True)
-            return
-        await self.creator_ref.finish_setup(interaction)
-
-class AddRoleConfirmView(discord.ui.View):
-    def __init__(self, creator):
-        super().__init__(timeout=None)
-        self.add_item(AddRoleButton(creator))
-        self.add_item(ConfirmEventButton(creator))
-
-# ============================ BOOKING VIEW ============================
-class BookingButton(discord.ui.Button):
-    def __init__(self, role, creator):
-        super().__init__(label=role, style=discord.ButtonStyle.primary)
-        self.role = role
-        self.creator_ref = creator
-
-    async def callback(self, interaction: discord.Interaction):
-        active_roles = self.creator_ref.to_active_roles()
-        for r, info in active_roles.items():
-            if interaction.user.name in info["users"]:
-                await interaction.response.send_message("❌ Hai già prenotato un ruolo!", ephemeral=True)
-                return
-        active_roles[self.role]["users"].append(interaction.user.name)
-        embed = generate_embed(self.creator_ref.data, self.creator_ref.desc, active_roles, self.creator_ref.selected_image)
-        await interaction.message.edit(embed=embed, view=self)
-        await interaction.response.send_message(f"✅ Ti sei prenotato per il ruolo **{self.role}**!", ephemeral=True)
-
-class BookingView(discord.ui.View):
-    def __init__(self, creator):
-        super().__init__(timeout=None)
-        for role in creator.roles:
-            self.add_item(BookingButton(role, creator))
-
-# ============================ COMANDO SLASH ============================
-@bot.tree.command(name="prenotazioni", description="Crea un evento con ruoli, aerei e scelta immagine")
-@app_commands.describe(data="Data della missione (es. 2025-09-22 18:00)", desc="Breve descrizione della missione")
-async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
-    creator = EventCreator(data, desc)
-    view = ImageSelectView(creator)
-    try:
-        await interaction.response.send_message("📸 Scegli un'immagine per l'evento:", view=view, ephemeral=True)
-    except Exception as e:
-        print(f"Errore invio view in /prenotazioni: {e}")
-        try:
-            await interaction.followup.send("❌ Errore interno durante l'apertura del setup. Riprova.", ephemeral=True)
-        except Exception:
-            pass
-
-# ============================ SYNC E ON_READY ============================
-@bot.event
-async def on_ready():
-    print(f"✅ Bot connesso come {bot.user}")
-    for gid in GUILD_IDS:
-        try:
-            synced = await bot.tree.sync(guild=discord.Object(id=gid))
-            print(f"🔄 Sincronizzati {len(synced)} comandi slash per guild {gid}: {[c.name for c in synced]}")
-        except Exception as e:
-            print(f"Errore sync per guild {gid}: {e}")
+        self.parent_view.selected_image = self.image_url.value.strip() or BACKGROUND_URL
+        await interaction.response.send_message("📸 Immagine personalizzata impostata!", ephemeral=True)
+        await self.parent_view.continue_setup(interaction)
 
 # ============================ WEB SERVER ============================
 app = Flask('')
