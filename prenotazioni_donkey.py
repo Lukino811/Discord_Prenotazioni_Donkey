@@ -7,18 +7,18 @@ import os
 from flask import Flask
 from threading import Thread
 
-# Ottieni il token del bot dall'ambiente, se non presente solleva errore
+# Ottieni il token del bot dall'ambiente
 TOKEN = os.environ.get("DISCORD_TOKEN")
 if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN non trovato — imposta la variabile d'ambiente")
 
-# Lista degli ID dei server dove il bot sarà attivo
+# Lista server
 GUILD_IDS = [1358713154116259892, 687741871757197312]
 
-# Impostazioni di default per immagini e ruoli
+# Impostazioni default
 BACKGROUND_URL = "https://cdn.discordapp.com/attachments/710523786558046298/1403090934857728001/BCO.png"
-MAX_ROLES = 5  # massimo ruoli per evento
-DEFAULT_SLOTS = 4  # slot per ruolo
+MAX_ROLES = 5
+DEFAULT_SLOTS = 4
 
 # ============================ BOT ============================
 intents = discord.Intents.default()
@@ -82,50 +82,6 @@ class ImageSelectView(discord.ui.View):
         self.add_item(ImageSelectButton(parent_view, label="Usa immagine di default", url=BACKGROUND_URL))
         self.add_item(ImageSelectButton(parent_view, label="Inserisci link immagine personalizzata"))
 
-# ============================ RUOLI, AEREI E PRENOTAZIONI ============================
-class BookingButton(discord.ui.Button):
-    def __init__(self, role, data, desc, active_roles, plane):
-        is_active = active_roles[role]["plane"] == plane
-        color = discord.ButtonStyle.success if is_active else discord.ButtonStyle.secondary
-        super().__init__(label=role, style=color, disabled=not is_active)
-        self.role_name = role
-        self.data = data
-        self.desc = desc
-        self.active_roles = active_roles
-        self.plane = plane
-
-    async def callback(self, interaction: discord.Interaction):
-        user = interaction.user.name
-        already_in_role = None
-        for r, info in self.active_roles.items():
-            if user in info["users"]:
-                already_in_role = r
-                break
-
-        if already_in_role and already_in_role != self.role_name:
-            await interaction.response.send_message(f"⚠️ Sei già prenotato in **{already_in_role}**! Rimuoviti prima da quel ruolo.", ephemeral=True)
-            return
-
-        role_info = self.active_roles[self.role_name]
-
-        if user in role_info["users"]:
-            role_info["users"].remove(user)
-            save_bookings()
-            embed = generate_embed(self.data, self.desc, self.active_roles, self.active_roles.get('image', BACKGROUND_URL))
-            await interaction.response.edit_message(embed=embed, view=self.view)
-            await interaction.followup.send(f"❌ Hai rimosso la tua prenotazione da **{self.role_name}**.", ephemeral=True)
-            return
-
-        if len(role_info["users"]) >= role_info["slots"]:
-            await interaction.response.send_message(f"⚠️ {self.role_name} è già pieno!", ephemeral=True)
-            return
-
-        role_info["users"].append(user)
-        save_bookings()
-        embed = generate_embed(self.data, self.desc, self.active_roles, self.active_roles.get('image', BACKGROUND_URL))
-        await interaction.response.edit_message(embed=embed, view=self.view)
-        await interaction.followup.send(f"✅ Prenotazione in **{self.role_name}** confermata!", ephemeral=True)
-
 # ============================ EVENT SETUP ============================
 class EventSetupView:
     def __init__(self, data, desc):
@@ -136,8 +92,8 @@ class EventSetupView:
         self.selected_image = BACKGROUND_URL
 
     async def continue_setup(self, interaction: discord.Interaction):
-        await interaction.followup.send("📝 Inserisci i ruoli per l'evento:", ephemeral=True)
-        await interaction.followup.send_modal(RoleInput(self))  # Assicurati che RoleInput sia definito correttamente
+        # Qui va la logica di ruoli (RoleInput) già esistente
+        await interaction.followup.send("📝 Inserisci i ruoli per l'evento (funzione RoleInput deve essere definita)", ephemeral=True)
 
     async def finish_setup(self, interaction: discord.Interaction):
         active_roles = {}
@@ -149,8 +105,8 @@ class EventSetupView:
         embed = generate_embed(self.data, self.desc, active_roles, self.selected_image)
         await interaction.followup.send(embed=embed)
 
-# ============================ COMANDO SLASH ============================
-@app_commands.command(name="prenotazioni", description="Crea un evento con ruoli, aerei e scelta immagine")
+# ============================ REGISTRAZIONE COMANDO SLASH ============================
+@bot.tree.command(name="prenotazioni", description="Crea un evento con ruoli, aerei e scelta immagine")
 @app_commands.describe(
     data="Data della missione (es. 2025-09-22 18:00)",
     desc="Breve descrizione della missione"
