@@ -67,14 +67,18 @@ class EventSetupView:
             async def on_submit(self, interaction: discord.Interaction):
                 role = self.role_name.value.strip()
                 self.parent.roles.append(role)
-                # Invio view per scegliere aereo dopo il ruolo
                 view = PlaneSelectForRoleView(self.parent, role)
-                await interaction.response.send_message(
-                    f"Ruolo **{role}** aggiunto! Seleziona l'aereo:", ephemeral=True, view=view
-                )
+                # Evita di rispondere due volte all'interaction
+                try:
+                    await interaction.response.send_message(f"Ruolo **{role}** aggiunto! Seleziona l'aereo:", ephemeral=True, view=view)
+                except discord.errors.InteractionResponded:
+                    await interaction.followup.send(f"Ruolo **{role}** aggiunto! Seleziona l'aereo:", ephemeral=True, view=view)
 
         modal = RoleInput(self)
-        await interaction.response.send_modal(modal)
+        try:
+            await interaction.response.send_modal(modal)
+        except discord.errors.InteractionResponded:
+            await interaction.followup.send_modal(modal)
 
     async def ask_next_role_or_confirm(self, interaction: discord.Interaction):
         if len(self.roles) < MAX_ROLES:
@@ -102,7 +106,10 @@ class ImageLinkModal(discord.ui.Modal, title="Inserisci link immagine personaliz
 
     async def on_submit(self, interaction: discord.Interaction):
         self.parent_view.selected_image = self.image_url.value.strip() or BACKGROUND_URL
-        await interaction.response.send_message("📸 Immagine personalizzata impostata!", ephemeral=True)
+        try:
+            await interaction.response.send_message("📸 Immagine personalizzata impostata!", ephemeral=True)
+        except discord.errors.InteractionResponded:
+            await interaction.followup.send("📸 Immagine personalizzata impostata!", ephemeral=True)
         await self.parent_view.continue_setup(interaction)
 
 class ImageSelectButton(discord.ui.Button):
@@ -114,10 +121,16 @@ class ImageSelectButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         if self.is_default:
             self.parent_view.selected_image = BACKGROUND_URL
-            await interaction.response.send_message("🖼️ Usata immagine di default!", ephemeral=True)
+            try:
+                await interaction.response.send_message("🖼️ Usata immagine di default!", ephemeral=True)
+            except discord.errors.InteractionResponded:
+                await interaction.followup.send("🖼️ Usata immagine di default!", ephemeral=True)
             await self.parent_view.continue_setup(interaction)
         else:
-            await interaction.response.send_modal(ImageLinkModal(self.parent_view))
+            try:
+                await interaction.response.send_modal(ImageLinkModal(self.parent_view))
+            except discord.errors.InteractionResponded:
+                await interaction.followup.send("⚠️ Impossibile aprire il modal.", ephemeral=True)
 
 class ImageSelectView(discord.ui.View):
     def __init__(self, parent_view):
