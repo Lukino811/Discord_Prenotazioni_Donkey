@@ -180,7 +180,14 @@ class BookingView(discord.ui.View):
 @app_commands.describe(data="Data della missione", desc="Breve descrizione della missione")
 async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
     setup = EventSetupView(data, desc)
-    await interaction.response.send_message("📸 Scegli un'immagine per l'evento:", ephemeral=True, view=ImageSelectView(setup))
+    # Defer per evitare Unknown interaction
+    await interaction.response.defer(ephemeral=True)
+    # Invia la view per la scelta immagine come followup
+    await interaction.followup.send(
+        "📸 Scegli un'immagine per l'evento:",
+        view=ImageSelectView(setup),
+        ephemeral=True
+    )
 
 # ============================ ON_READY ============================
 @bot.event
