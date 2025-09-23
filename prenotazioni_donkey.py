@@ -185,20 +185,23 @@ async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
 # ============================ ON_READY ============================
 @bot.event
 async def on_ready():
-    print(f"✅ Bot connesso come {bot.user}")
+    print(f"✅ Bot connesso come {bot.user}\n")
 
-    # Mostra comandi già presenti
-    print("Comandi presenti nel tree prima della sync:")
-    for c in bot.tree.walk_commands():
-        print(f" - {c.name}")
-
-    # Sincronizza comandi globali (test locale)
     try:
-        synced = await bot.tree.sync()  # senza guild, globale
-        print(f"🔄 Sincronizzati {len(synced)} comandi globali: {[c.name for c in synced]}")
-    except Exception as e:
-        print(f"Errore durante la sync globale: {e}")
+        # Mostra i comandi attualmente presenti nel tree
+        print("Comandi presenti nel tree prima della sync:")
+        for cmd in bot.tree.get_commands():
+            print(f" - {cmd.name}")
 
+        # Proviamo la sync globale (funziona ovunque)
+        synced = await bot.tree.sync()
+        print(f"\n🔄 Sincronizzati {len(synced)} comandi globali: {[c.name for c in synced]}")
+
+    except Exception as e:
+        print(f"\n❌ Errore durante la sincronizzazione dei comandi: {e}")
+
+    # Ulteriore info per debug
+    print("\n💡 Ricorda: i comandi globali possono impiegare 1-2 minuti a comparire su Discord.")
 
 # ============================ WEB SERVER ============================
 app = Flask('')
