@@ -7,25 +7,20 @@ import os
 from flask import Flask
 from threading import Thread
 
-# Token del bot (variabile d'ambiente)
 TOKEN = os.environ.get("DISCORD_TOKEN")
 if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN non trovato — imposta la variabile d'ambiente")
 
-# Guild di test
 GUILD_IDS = [1358713154116259892, 687741871757197312]
 
-# Config default
 BACKGROUND_URL = "https://cdn.discordapp.com/attachments/710523786558046298/1403090934857728001/BCO.png"
 MAX_ROLES = 5
 DEFAULT_SLOTS = 4
 PLANES = ["FA-18C", "F-16C"]
 
-# ============================ BOT ============================
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ============================ PERSISTENZA ============================
 if os.path.exists("prenotazioni.json"):
     with open("prenotazioni.json", "r") as f:
         bookings = json.load(f)
@@ -38,19 +33,14 @@ def save_bookings():
 
 # ============================ HELPERS ============================
 def generate_embed(data: str, desc: str, active_roles: dict, image_url: str = BACKGROUND_URL):
-    embed = discord.Embed(
-        title="📋 Prenotazioni Piloti",
-        description=f"📅 Missione: {data}\n📝 {desc}",
-        color=0x1abc9c
-    )
+    embed = discord.Embed(title="📋 Prenotazioni Piloti",
+                          description=f"📅 Missione: {data}\n📝 {desc}",
+                          color=0x1abc9c)
     for role, info in active_roles.items():
         stato = "✅ Attivo" if info["plane"] != "Non Attivo" else "❌ Non Attivo"
         piloti = ", ".join(info["users"]) if info["users"] else "Nessuno"
-        embed.add_field(
-            name=f"{role} ({len(info['users'])}/{info['slots']}) - {stato} - {info['plane']}",
-            value=f"Prenotati: {piloti}",
-            inline=False
-        )
+        embed.add_field(name=f"{role} ({len(info['users'])}/{info['slots']}) - {stato} - {info['plane']}",
+                        value=f"Prenotati: {piloti}", inline=False)
     embed.set_footer(text="Prenota cliccando i pulsanti qui sotto ✈️")
     embed.set_image(url=image_url)
     return embed
@@ -77,22 +67,14 @@ class EventSetupView:
             async def on_submit(self, interaction: discord.Interaction):
                 role = self.role_name.value.strip()
                 self.parent.roles.append(role)
-                try:
-                    await interaction.response.send_message(
-                        f"Ruolo **{role}** aggiunto! Seleziona l'aereo:",
-                        ephemeral=True,
-                        view=PlaneSelectForRoleView(self.parent, role)
-                    )
-                except Exception:
-                    await interaction.followup.send(f"⚠️ Errore durante la selezione aereo per **{role}**", ephemeral=True)
+                # Invio view per scegliere aereo dopo il ruolo
+                view = PlaneSelectForRoleView(self.parent, role)
+                await interaction.response.send_message(
+                    f"Ruolo **{role}** aggiunto! Seleziona l'aereo:", ephemeral=True, view=view
+                )
 
-        try:
-            if interaction.response.is_done():
-                await interaction.followup.send_modal(RoleInput(self))
-            else:
-                await interaction.response.send_modal(RoleInput(self))
-        except Exception as e:
-            await interaction.followup.send(f"⚠️ Errore durante apertura modal: {e}", ephemeral=True)
+        modal = RoleInput(self)
+        await interaction.response.send_modal(modal)
 
     async def ask_next_role_or_confirm(self, interaction: discord.Interaction):
         if len(self.roles) < MAX_ROLES:
@@ -113,9 +95,11 @@ class EventSetupView:
 # ============================ VIEWS ============================
 class ImageLinkModal(discord.ui.Modal, title="Inserisci link immagine personalizzata"):
     image_url = discord.ui.TextInput(label="URL immagine", placeholder="https://...", max_length=500)
+
     def __init__(self, parent_view):
         super().__init__()
         self.parent_view = parent_view
+
     async def on_submit(self, interaction: discord.Interaction):
         self.parent_view.selected_image = self.image_url.value.strip() or BACKGROUND_URL
         await interaction.response.send_message("📸 Immagine personalizzata impostata!", ephemeral=True)
@@ -126,6 +110,7 @@ class ImageSelectButton(discord.ui.Button):
         super().__init__(label=label, style=discord.ButtonStyle.primary)
         self.parent_view = parent_view
         self.is_default = is_default
+
     async def callback(self, interaction: discord.Interaction):
         if self.is_default:
             self.parent_view.selected_image = BACKGROUND_URL
@@ -146,6 +131,7 @@ class PlaneSelectForRole(discord.ui.Select):
         super().__init__(placeholder=f"Scegli aereo per {role_name}", min_values=1, max_values=1, options=options)
         self.parent_view = parent_view
         self.role_name = role_name
+
     async def callback(self, interaction: discord.Interaction):
         self.parent_view.selected_planes[self.role_name] = self.values[0]
         await self.parent_view.ask_next_role_or_confirm(interaction)
@@ -160,6 +146,7 @@ class BookingButton(discord.ui.Button):
         super().__init__(label=role, style=discord.ButtonStyle.primary)
         self.role = role
         self.active_roles = active_roles
+
     async def callback(self, interaction: discord.Interaction):
         user = interaction.user.name
         role_info = self.active_roles[self.role]
@@ -180,19 +167,13 @@ class BookingView(discord.ui.View):
 @app_commands.describe(data="Data della missione", desc="Breve descrizione della missione")
 async def prenotazioni(interaction: discord.Interaction, data: str, desc: str):
     setup = EventSetupView(data, desc)
-    # Defer per evitare Unknown interaction
-    await interaction.response.defer(ephemeral=True)
-    # Invia la view per la scelta immagine come followup
-    await interaction.followup.send(
-        "📸 Scegli un'immagine per l'evento:",
-        view=ImageSelectView(setup),
-        ephemeral=True
-    )
+    await interaction.response.defer(ephemeral=True)  # defer evita NotFound
+    await interaction.followup.send("📸 Scegli un'immagine per l'evento:", ephemeral=True, view=ImageSelectView(setup))
 
 # ============================ ON_READY ============================
 @bot.event
 async def on_ready():
-    print(f"✅ Bot connesso come {bot.user}\n")
+    print(f"✅ Bot connesso come {bot.user}")
     try:
         synced = await bot.tree.sync()
         print(f"🔄 Sincronizzati {len(synced)} comandi globali")
@@ -204,9 +185,11 @@ app = Flask('')
 @app.route('/')
 def home():
     return "Bot attivo!"
+
 def run():
     port = int(os.environ.get("PORT", 3000))
     app.run(host='0.0.0.0', port=port)
+
 Thread(target=run).start()
 
 # ============================ AVVIO BOT ============================
