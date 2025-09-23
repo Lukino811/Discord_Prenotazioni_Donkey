@@ -137,7 +137,7 @@ class EventSetupView:
 
     async def continue_setup(self, interaction: discord.Interaction):
         await interaction.followup.send("📝 Inserisci i ruoli per l'evento:", ephemeral=True)
-        await interaction.followup.send_modal(RoleInput(self))
+        await interaction.followup.send_modal(RoleInput(self))  # Assicurati che RoleInput sia definito correttamente
 
     async def finish_setup(self, interaction: discord.Interaction):
         active_roles = {}
@@ -151,7 +151,7 @@ class EventSetupView:
 
 # ============================ COMANDO SLASH ============================
 @app_commands.command(name="prenotazioni", description="Crea un evento con ruoli, aerei e scelta immagine")
-@app_commands.describe(a
+@app_commands.describe(
     data="Data della missione (es. 2025-09-22 18:00)",
     desc="Breve descrizione della missione"
 )
